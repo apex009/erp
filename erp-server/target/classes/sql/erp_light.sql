@@ -22,6 +22,10 @@ DROP TABLE IF EXISTS purchase_order;
 
 DROP TABLE IF EXISTS stock_record;
 DROP TABLE IF EXISTS stock;
+DROP TABLE IF EXISTS stock_transfer_item;
+DROP TABLE IF EXISTS stock_transfer;
+DROP TABLE IF EXISTS stock_check_item;
+DROP TABLE IF EXISTS stock_check;
 DROP TABLE IF EXISTS warehouse;
 DROP TABLE IF EXISTS product;
 DROP TABLE IF EXISTS supplier;
@@ -178,6 +182,54 @@ CREATE TABLE stock_record (
     KEY idx_stock_record_wh (warehouse_id)
 );
 
+CREATE TABLE stock_transfer (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    order_no VARCHAR(50) NOT NULL UNIQUE,
+    from_warehouse_id BIGINT NOT NULL,
+    to_warehouse_id BIGINT NOT NULL,
+    total_quantity DECIMAL(18,4) DEFAULT 0,
+    status TINYINT DEFAULT 1,
+    remark VARCHAR(200) DEFAULT NULL,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT DEFAULT 0
+);
+
+CREATE TABLE stock_transfer_item (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    transfer_id BIGINT NOT NULL,
+    product_id BIGINT NOT NULL,
+    quantity DECIMAL(18,4) NOT NULL,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT DEFAULT 0,
+    KEY idx_transfer_item_transfer (transfer_id)
+);
+
+CREATE TABLE stock_check (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    order_no VARCHAR(50) NOT NULL UNIQUE,
+    warehouse_id BIGINT NOT NULL,
+    status TINYINT DEFAULT 1,
+    remark VARCHAR(200) DEFAULT NULL,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT DEFAULT 0
+);
+
+CREATE TABLE stock_check_item (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    check_id BIGINT NOT NULL,
+    product_id BIGINT NOT NULL,
+    system_qty DECIMAL(18,4) DEFAULT 0,
+    actual_qty DECIMAL(18,4) DEFAULT 0,
+    diff_qty DECIMAL(18,4) DEFAULT 0,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT DEFAULT 0,
+    KEY idx_check_item_check (check_id)
+);
+
 CREATE TABLE purchase_order (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     order_no VARCHAR(50) NOT NULL UNIQUE,
@@ -288,38 +340,38 @@ SET FOREIGN_KEY_CHECKS = 0;
 
 INSERT INTO sys_dept (id, parent_id, dept_name, leader, status, deleted)
 VALUES
-  (1, NULL, 'Admin', 'System', 1, 0),
-  (2, 1, 'Sales', 'Alice', 1, 0),
-  (3, 1, 'Finance', 'Bob', 1, 0);
+  (1, NULL, '系统管理', '系统', 1, 0),
+  (2, 1, '销售部', '张销售', 1, 0),
+  (3, 1, '财务部', '李财务', 1, 0);
 
 INSERT INTO sys_role (id, role_code, role_name, status, remark, deleted)
 VALUES
-  (1, 'ADMIN', 'Administrator', 1, '', 0),
-  (2, 'SALES', 'Sales', 1, '', 0),
-  (3, 'FIN', 'Finance', 1, '', 0);
+  (1, 'ADMIN', '管理员', 1, '', 0),
+  (2, 'SALES', '销售', 1, '', 0),
+  (3, 'FIN', '财务', 1, '', 0);
 
 INSERT INTO customer (id, name, contact, phone, level, sales_user_id, credit_limit, status, deleted)
 VALUES
-  (1, 'Customer A', 'Tom', '13800000001', 1, NULL, 5000.00, 1, 0),
-  (2, 'Customer B', 'Jerry', '13800000002', 2, NULL, 8000.00, 1, 0),
-  (3, 'Customer C', 'Kate', '13800000003', 1, NULL, 3000.00, 1, 0);
+  (1, '华北客户', '王强', '13800000001', 1, NULL, 5000.00, 1, 0),
+  (2, '华中客户', '李敏', '13800000002', 2, NULL, 8000.00, 1, 0),
+  (3, '华南客户', '赵丽', '13800000003', 1, NULL, 3000.00, 1, 0);
 
 INSERT INTO supplier (id, name, contact, phone, address, status, deleted)
 VALUES
-  (1, 'Supplier A', 'Sam', '13900000001', 'No.1 Road', 1, 0),
-  (2, 'Supplier B', 'Lily', '13900000002', 'No.2 Road', 1, 0);
+  (1, '华北供应商', '陈伟', '13900000001', '一号路', 1, 0),
+  (2, '华中供应商', '刘洋', '13900000002', '二号路', 1, 0);
 
 INSERT INTO product (id, sku, name, category, unit, spec, purchase_price, sale_price, status, deleted)
 VALUES
-  (1, 'P-001', 'Paper A4', 'Office', 'pack', '500 sheets', 10.00, 15.00, 1, 0),
-  (2, 'P-002', 'Ink', 'Office', 'box', 'Black', 20.00, 30.00, 1, 0),
-  (3, 'P-003', 'USB Cable', 'Accessory', 'pcs', '1m', 5.00, 9.00, 1, 0),
-  (4, 'P-004', 'Mouse', 'Accessory', 'pcs', 'Wireless', 25.00, 40.00, 1, 0);
+  (1, 'P-001', 'A4复印纸', '办公', '包', '500张', 10.00, 15.00, 1, 0),
+  (2, 'P-002', '打印墨盒', '办公', '盒', '黑色', 20.00, 30.00, 1, 0),
+  (3, 'P-003', 'USB数据线', '配件', '条', '1米', 5.00, 9.00, 1, 0),
+  (4, 'P-004', '无线鼠标', '配件', '个', '2.4G', 25.00, 40.00, 1, 0);
 
 INSERT INTO warehouse (id, name, address, manager, status, deleted)
 VALUES
-  (1, 'Main Warehouse', 'Warehouse Road 1', 'Mike', 1, 0),
-  (2, 'Backup Warehouse', 'Warehouse Road 2', 'Jane', 1, 0);
+  (1, '主仓库', '仓储路1号', '王仓库', 1, 0),
+  (2, '备仓库', '仓储路2号', '李仓库', 1, 0);
 
 INSERT INTO stock (id, product_id, warehouse_id, quantity, safe_stock, deleted)
 VALUES
@@ -330,7 +382,7 @@ VALUES
 
 INSERT INTO purchase_order (id, order_no, supplier_id, total_amount, status, remark, deleted)
 VALUES
-  (1, 'PO202602010001', 1, 200.00, 0, 'seed purchase', 0);
+  (1, 'PO202602010001', 1, 200.00, 0, '示例采购', 0);
 
 INSERT INTO purchase_item (id, order_id, product_id, warehouse_id, quantity, price, amount, deleted)
 VALUES
@@ -339,7 +391,7 @@ VALUES
 
 INSERT INTO sales_order (id, order_no, customer_id, total_amount, status, remark, deleted)
 VALUES
-  (1, 'SO202602010001', 1, 63.00, 0, 'seed sales', 0);
+  (1, 'SO202602010001', 1, 63.00, 0, '示例销售', 0);
 
 INSERT INTO sales_item (id, order_id, product_id, warehouse_id, quantity, price, amount, deleted)
 VALUES
@@ -356,18 +408,17 @@ VALUES
 
 INSERT INTO receipt (id, receivable_id, amount, method, remark, deleted)
 VALUES
-  (1, 1, 20.00, 'bank', 'seed receipt', 0);
+  (1, 1, 20.00, 'bank', '示例收款', 0);
 
 INSERT INTO payment (id, payable_id, amount, method, remark, deleted)
 VALUES
-  (1, 1, 50.00, 'cash', 'seed payment', 0);
+  (1, 1, 50.00, 'cash', '示例付款', 0);
 
 INSERT INTO stock_record (id, product_id, warehouse_id, quantity, record_type, biz_type, biz_id, remark, deleted)
 VALUES
-  (1, 1, 1, 10.0000, 'IN', 'PURCHASE', 1, 'seed purchase in', 0),
-  (2, 2, 1, 5.0000, 'IN', 'PURCHASE', 1, 'seed purchase in', 0),
-  (3, 1, 1, 3.0000, 'OUT', 'SALE', 1, 'seed sale out', 0),
-  (4, 3, 1, 2.0000, 'OUT', 'SALE', 1, 'seed sale out', 0);
+  (1, 1, 1, 10.0000, 'IN', 'PURCHASE', 1, '示例采购入库', 0),
+  (2, 2, 1, 5.0000, 'IN', 'PURCHASE', 1, '示例采购入库', 0),
+  (3, 1, 1, 3.0000, 'OUT', 'SALE', 1, '示例销售出库', 0),
+  (4, 3, 1, 2.0000, 'OUT', 'SALE', 1, '示例销售出库', 0);
 
 SET FOREIGN_KEY_CHECKS = 1;
-

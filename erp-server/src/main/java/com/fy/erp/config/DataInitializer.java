@@ -31,7 +31,7 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     public void run(String... args) {
         SysDept dept = deptService.lambdaQuery()
-                .eq(SysDept::getDeptName, "Admin")
+                .eq(SysDept::getDeptName, "系统管理")
                 .orderByAsc(SysDept::getId)
                 .list()
                 .stream()
@@ -39,8 +39,8 @@ public class DataInitializer implements CommandLineRunner {
                 .orElse(null);
         if (dept == null) {
             dept = new SysDept();
-            dept.setDeptName("Admin");
-            dept.setLeader("System");
+            dept.setDeptName("系统管理");
+            dept.setLeader("系统");
             dept.setStatus(1);
             deptService.save(dept);
         }
@@ -55,7 +55,7 @@ public class DataInitializer implements CommandLineRunner {
         if (role == null) {
             role = new SysRole();
             role.setRoleCode("ADMIN");
-            role.setRoleName("Administrator");
+            role.setRoleName("管理员");
             role.setStatus(1);
             roleService.save(role);
         }
@@ -71,7 +71,7 @@ public class DataInitializer implements CommandLineRunner {
             user = new SysUser();
             user.setDeptId(dept.getId());
             user.setUsername("admin");
-            user.setNickname("Administrator");
+            user.setNickname("管理员");
             user.setStatus(1);
             userService.setPassword(user, "123456");
             userService.save(user);
