@@ -22,6 +22,10 @@ DROP TABLE IF EXISTS purchase_order;
 
 DROP TABLE IF EXISTS stock_record;
 DROP TABLE IF EXISTS stock;
+DROP TABLE IF EXISTS stock_transfer_item;
+DROP TABLE IF EXISTS stock_transfer;
+DROP TABLE IF EXISTS stock_check_item;
+DROP TABLE IF EXISTS stock_check;
 DROP TABLE IF EXISTS warehouse;
 DROP TABLE IF EXISTS product;
 DROP TABLE IF EXISTS supplier;
@@ -176,6 +180,54 @@ CREATE TABLE stock_record (
     deleted TINYINT DEFAULT 0,
     KEY idx_stock_record_prod (product_id),
     KEY idx_stock_record_wh (warehouse_id)
+);
+
+CREATE TABLE stock_transfer (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    order_no VARCHAR(50) NOT NULL UNIQUE,
+    from_warehouse_id BIGINT NOT NULL,
+    to_warehouse_id BIGINT NOT NULL,
+    total_quantity DECIMAL(18,4) DEFAULT 0,
+    status TINYINT DEFAULT 1,
+    remark VARCHAR(200) DEFAULT NULL,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT DEFAULT 0
+);
+
+CREATE TABLE stock_transfer_item (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    transfer_id BIGINT NOT NULL,
+    product_id BIGINT NOT NULL,
+    quantity DECIMAL(18,4) NOT NULL,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT DEFAULT 0,
+    KEY idx_transfer_item_transfer (transfer_id)
+);
+
+CREATE TABLE stock_check (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    order_no VARCHAR(50) NOT NULL UNIQUE,
+    warehouse_id BIGINT NOT NULL,
+    status TINYINT DEFAULT 1,
+    remark VARCHAR(200) DEFAULT NULL,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT DEFAULT 0
+);
+
+CREATE TABLE stock_check_item (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    check_id BIGINT NOT NULL,
+    product_id BIGINT NOT NULL,
+    system_qty DECIMAL(18,4) DEFAULT 0,
+    actual_qty DECIMAL(18,4) DEFAULT 0,
+    diff_qty DECIMAL(18,4) DEFAULT 0,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT DEFAULT 0,
+    KEY idx_check_item_check (check_id)
 );
 
 CREATE TABLE purchase_order (
@@ -370,4 +422,3 @@ VALUES
   (4, 3, 1, 2.0000, 'OUT', 'SALE', 1, 'seed sale out', 0);
 
 SET FOREIGN_KEY_CHECKS = 1;
-

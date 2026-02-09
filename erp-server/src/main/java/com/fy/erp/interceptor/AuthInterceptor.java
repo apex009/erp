@@ -3,6 +3,7 @@ package com.fy.erp.interceptor;
 import com.fy.erp.exception.BizException;
 import com.fy.erp.security.UserContext;
 import com.fy.erp.security.UserPrincipal;
+import com.fy.erp.service.RbacService;
 import com.fy.erp.utils.JwtUtil;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,6 +18,12 @@ import java.util.List;
 
 @Component
 public class AuthInterceptor implements HandlerInterceptor {
+    private final RbacService rbacService;
+
+    public AuthInterceptor(RbacService rbacService) {
+        this.rbacService = rbacService;
+    }
+
     @Value("${jwt.secret}")
     private String secret;
 
@@ -44,6 +51,11 @@ public class AuthInterceptor implements HandlerInterceptor {
                 ? Collections.emptyList()
                 : Arrays.asList(roleStr.split(","));
         UserContext.set(new UserPrincipal(userId, username, nickname, roles));
+        String requestPath = request.getRequestURI();
+        String requestMethod = request.getMethod();
+        if (!rbacService.hasPermission(roles, requestMethod, requestPath)) {
+            throw new BizException(403, "forbidden");
+        }
         return true;
     }
 

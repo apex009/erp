@@ -57,4 +57,19 @@ public class SalesOrderController {
     public Result<SalesOrder> create(@Valid @RequestBody SalesOrderCreateRequest request) {
         return Result.success(orderService.createOrder(request));
     }
+
+    @PostMapping("/{id}/approve")
+    public Result<SalesOrder> approve(@PathVariable Long id) {
+        return Result.success(orderService.approve(id));
+    }
+
+    @PostMapping("/{id}/cancel")
+    public Result<SalesOrder> cancel(@PathVariable Long id) {
+        return Result.success(orderService.cancel(id));
+    }
+
+    @PostMapping("/{id}/return")
+    public Result<SalesOrder> refund(@PathVariable Long id) {
+        return Result.success(orderService.refund(id));
+    }
 }

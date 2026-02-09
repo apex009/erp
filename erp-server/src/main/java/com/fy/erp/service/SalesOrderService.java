@@ -7,6 +7,7 @@ import com.fy.erp.entities.Receivable;
 import com.fy.erp.entities.SalesItem;
 import com.fy.erp.entities.SalesOrder;
 import com.fy.erp.entities.StockRecord;
+import com.fy.erp.exception.BizException;
 import com.fy.erp.mapper.SalesOrderMapper;
 import com.fy.erp.util.OrderNoUtil;
 import org.springframework.stereotype.Service;
@@ -78,6 +79,88 @@ public class SalesOrderService extends ServiceImpl<SalesOrderMapper, SalesOrder>
         receivable.setStatus(0);
         receivableService.save(receivable);
 
+        return order;
+    }
+
+    @Transactional
+    public SalesOrder approve(Long id) {
+        SalesOrder order = getById(id);
+        if (order == null) {
+            throw new BizException(404, "order not found");
+        }
+        if (order.getStatus() != null && order.getStatus() != 0) {
+            return order;
+        }
+        order.setStatus(1);
+        updateById(order);
+        return order;
+    }
+
+    @Transactional
+    public SalesOrder cancel(Long id) {
+        SalesOrder order = getById(id);
+        if (order == null) {
+            throw new BizException(404, "order not found");
+        }
+        if (order.getStatus() != null && order.getStatus() == 2) {
+            return order;
+        }
+        Receivable receivable = receivableService.getByOrderId(id);
+        if (receivable != null && receivable.getPaidAmount() != null && receivable.getPaidAmount().compareTo(BigDecimal.ZERO) > 0) {
+            throw new BizException(400, "receivable already paid");
+        }
+        for (SalesItem item : itemService.lambdaQuery().eq(SalesItem::getOrderId, id).list()) {
+            stockService.addStock(item.getProductId(), item.getWarehouseId(), item.getQuantity());
+            StockRecord record = new StockRecord();
+            record.setProductId(item.getProductId());
+            record.setWarehouseId(item.getWarehouseId());
+            record.setQuantity(item.getQuantity());
+            record.setRecordType("IN");
+            record.setBizType("SALE_CANCEL");
+            record.setBizId(order.getId());
+            record.setRemark("sale cancel");
+            stockRecordService.save(record);
+        }
+        order.setStatus(2);
+        updateById(order);
+        if (receivable != null) {
+            receivable.setStatus(3);
+            receivableService.updateById(receivable);
+        }
+        return order;
+    }
+
+    @Transactional
+    public SalesOrder refund(Long id) {
+        SalesOrder order = getById(id);
+        if (order == null) {
+            throw new BizException(404, "order not found");
+        }
+        if (order.getStatus() != null && order.getStatus() == 3) {
+            return order;
+        }
+        Receivable receivable = receivableService.getByOrderId(id);
+        if (receivable != null && receivable.getPaidAmount() != null && receivable.getPaidAmount().compareTo(BigDecimal.ZERO) > 0) {
+            throw new BizException(400, "receivable already paid");
+        }
+        for (SalesItem item : itemService.lambdaQuery().eq(SalesItem::getOrderId, id).list()) {
+            stockService.addStock(item.getProductId(), item.getWarehouseId(), item.getQuantity());
+            StockRecord record = new StockRecord();
+            record.setProductId(item.getProductId());
+            record.setWarehouseId(item.getWarehouseId());
+            record.setQuantity(item.getQuantity());
+            record.setRecordType("IN");
+            record.setBizType("SALE_RETURN");
+            record.setBizId(order.getId());
+            record.setRemark("sale return");
+            stockRecordService.save(record);
+        }
+        order.setStatus(3);
+        updateById(order);
+        if (receivable != null) {
+            receivable.setStatus(3);
+            receivableService.updateById(receivable);
+        }
         return order;
     }
 }

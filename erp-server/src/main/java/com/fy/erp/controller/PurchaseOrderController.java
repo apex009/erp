@@ -57,4 +57,19 @@ public class PurchaseOrderController {
     public Result<PurchaseOrder> create(@Valid @RequestBody PurchaseOrderCreateRequest request) {
         return Result.success(orderService.createOrder(request));
     }
+
+    @PostMapping("/{id}/approve")
+    public Result<PurchaseOrder> approve(@PathVariable Long id) {
+        return Result.success(orderService.approve(id));
+    }
+
+    @PostMapping("/{id}/cancel")
+    public Result<PurchaseOrder> cancel(@PathVariable Long id) {
+        return Result.success(orderService.cancel(id));
+    }
+
+    @PostMapping("/{id}/return")
+    public Result<PurchaseOrder> refund(@PathVariable Long id) {
+        return Result.success(orderService.refund(id));
+    }
 }

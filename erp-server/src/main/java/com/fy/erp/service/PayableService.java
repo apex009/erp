@@ -40,4 +40,8 @@ public class PayableService extends ServiceImpl<PayableMapper, Payable> {
         paymentService.save(payment);
         return payment;
     }
+
+    public Payable getByOrderId(Long orderId) {
+        return lambdaQuery().eq(Payable::getOrderId, orderId).one();
+    }
 }

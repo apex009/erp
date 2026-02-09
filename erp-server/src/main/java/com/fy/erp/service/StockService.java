@@ -44,4 +44,19 @@ public class StockService extends ServiceImpl<StockMapper, Stock> {
         stock.setQuantity(remain);
         updateById(stock);
     }
+
+    public void setStockQuantity(Long productId, Long warehouseId, BigDecimal qty) {
+        Stock stock = getStock(productId, warehouseId);
+        if (stock == null) {
+            stock = new Stock();
+            stock.setProductId(productId);
+            stock.setWarehouseId(warehouseId);
+            stock.setQuantity(qty);
+            stock.setSafeStock(BigDecimal.ZERO);
+            save(stock);
+        } else {
+            stock.setQuantity(qty);
+            updateById(stock);
+        }
+    }
 }

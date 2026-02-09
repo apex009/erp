@@ -1,16 +1,18 @@
 openapi: 3.0.3
 info:
-  title: ERP 后端 API（Apifox 可导入）
+  title: 轻量化ERP后端API（Apifox可导入）
   version: "1.0.0"
 servers:
   - url: http://localhost:8080
 security:
   - bearerAuth: [ ]
+
 tags:
   - name: 认证
   - name: 用户
   - name: 部门
   - name: 角色
+  - name: 权限
   - name: 客户
   - name: 供应商
   - name: 商品
@@ -23,6 +25,9 @@ tags:
   - name: 应付
   - name: 收款记录
   - name: 付款记录
+  - name: 库存调拨
+  - name: 库存盘点
+  - name: 报表
 
 paths:
   /api/auth/login:
@@ -36,57 +41,23 @@ paths:
           application/json:
             schema:
               type: object
-              example:
-                username: admin
-                password: 123456
+              example: { username: admin, password: 123456 }
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                example:
-                  code: 200
-                  msg: success
-                  data:
-                    token: xxx
-                    tokenType: Bearer
-                    expiresAt: 1710000000000
-                    userId: 1
-                    nickname: Administrator
-                    roles: [ "ADMIN" ]
+        '200': { description: OK }
 
   /api/auth/logout:
     post:
       tags: [ 认证 ]
       summary: 退出登录
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema: { type: object }
+        '200': { description: OK }
 
   /api/auth/me:
     get:
       tags: [ 认证 ]
       summary: 当前用户
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                example:
-                  code: 200
-                  msg: success
-                  data:
-                    userId: 1
-                    username: admin
-                    nickname: Administrator
-                    roles: [ "ADMIN" ]
+        '200': { description: OK }
 
   /api/users:
     get:
@@ -109,11 +80,7 @@ paths:
           name: status
           schema: { type: integer }
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema: { type: object }
+        '200': { description: OK }
     post:
       tags: [ 用户 ]
       summary: 新增用户
@@ -133,11 +100,7 @@ paths:
                 status: 1
                 roleIds: [ 1 ]
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema: { type: object }
+        '200': { description: OK }
 
   /api/users/{id}:
     get:
@@ -149,11 +112,7 @@ paths:
           required: true
           schema: { type: integer, format: int64 }
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema: { type: object }
+        '200': { description: OK }
     put:
       tags: [ 用户 ]
       summary: 修改用户
@@ -168,11 +127,7 @@ paths:
           application/json:
             schema: { type: object }
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema: { type: object }
+        '200': { description: OK }
     delete:
       tags: [ 用户 ]
       summary: 删除用户
@@ -182,11 +137,7 @@ paths:
           required: true
           schema: { type: integer, format: int64 }
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema: { type: object }
+        '200': { description: OK }
 
   /api/depts:
     get:
@@ -294,6 +245,92 @@ paths:
     delete:
       tags: [ 角色 ]
       summary: 删除角色
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: OK }
+
+  /api/roles/{id}/permissions:
+    get:
+      tags: [ 角色 ]
+      summary: 角色权限列表
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: OK }
+    put:
+      tags: [ 角色 ]
+      summary: 角色权限配置
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { type: integer, format: int64 }
+      responses:
+        '200': { description: OK }
+
+  /api/permissions:
+    get:
+      tags: [ 权限 ]
+      summary: 权限分页
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: size
+          schema: { type: integer, default: 10 }
+        - in: query
+          name: keyword
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: integer }
+      responses:
+        '200': { description: OK }
+    post:
+      tags: [ 权限 ]
+      summary: 新增权限
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: OK }
+
+  /api/permissions/{id}:
+    put:
+      tags: [ 权限 ]
+      summary: 修改权限
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: OK }
+    delete:
+      tags: [ 权限 ]
+      summary: 删除权限
       parameters:
         - in: path
           name: id
@@ -639,6 +676,111 @@ paths:
       responses:
         '200': { description: OK }
 
+  /api/stock-transfers:
+    get:
+      tags: [ 库存调拨 ]
+      summary: 调拨分页
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: size
+          schema: { type: integer, default: 10 }
+        - in: query
+          name: fromWarehouseId
+          schema: { type: integer, format: int64 }
+        - in: query
+          name: toWarehouseId
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: OK }
+    post:
+      tags: [ 库存调拨 ]
+      summary: 新建调拨
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: OK }
+
+  /api/stock-transfers/{id}:
+    get:
+      tags: [ 库存调拨 ]
+      summary: 调拨详情
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: OK }
+
+  /api/stock-transfers/{id}/items:
+    get:
+      tags: [ 库存调拨 ]
+      summary: 调拨明细
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: OK }
+
+  /api/stock-checks:
+    get:
+      tags: [ 库存盘点 ]
+      summary: 盘点分页
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: size
+          schema: { type: integer, default: 10 }
+        - in: query
+          name: warehouseId
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: OK }
+    post:
+      tags: [ 库存盘点 ]
+      summary: 新建盘点
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: OK }
+
+  /api/stock-checks/{id}:
+    get:
+      tags: [ 库存盘点 ]
+      summary: 盘点详情
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: OK }
+
+  /api/stock-checks/{id}/items:
+    get:
+      tags: [ 库存盘点 ]
+      summary: 盘点明细
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: OK }
+
   /api/purchase-orders:
     get:
       tags: [ 采购订单 ]
@@ -702,6 +844,42 @@ paths:
       responses:
         '200': { description: OK }
 
+  /api/purchase-orders/{id}/approve:
+    post:
+      tags: [ 采购订单 ]
+      summary: 采购订单审核
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: OK }
+
+  /api/purchase-orders/{id}/cancel:
+    post:
+      tags: [ 采购订单 ]
+      summary: 采购订单取消
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: OK }
+
+  /api/purchase-orders/{id}/return:
+    post:
+      tags: [ 采购订单 ]
+      summary: 采购订单退货
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: OK }
+
   /api/sales-orders:
     get:
       tags: [ 销售订单 ]
@@ -757,6 +935,42 @@ paths:
     get:
       tags: [ 销售订单 ]
       summary: 销售订单明细
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: OK }
+
+  /api/sales-orders/{id}/approve:
+    post:
+      tags: [ 销售订单 ]
+      summary: 销售订单审核
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: OK }
+
+  /api/sales-orders/{id}/cancel:
+    post:
+      tags: [ 销售订单 ]
+      summary: 销售订单取消
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: OK }
+
+  /api/sales-orders/{id}/return:
+    post:
+      tags: [ 销售订单 ]
+      summary: 销售订单退货
       parameters:
         - in: path
           name: id
@@ -946,6 +1160,69 @@ paths:
           name: id
           required: true
           schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: OK }
+
+  /api/reports/sales/day:
+    get:
+      tags: [ 报表 ]
+      summary: 销售按天统计
+      parameters:
+        - in: query
+          name: start
+          schema: { type: string }
+        - in: query
+          name: end
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+
+  /api/reports/sales/customer:
+    get:
+      tags: [ 报表 ]
+      summary: 销售按客户统计
+      parameters:
+        - in: query
+          name: start
+          schema: { type: string }
+        - in: query
+          name: end
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+
+  /api/reports/sales/product:
+    get:
+      tags: [ 报表 ]
+      summary: 销售按商品统计
+      parameters:
+        - in: query
+          name: start
+          schema: { type: string }
+        - in: query
+          name: end
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+
+  /api/reports/inventory/low-stock:
+    get:
+      tags: [ 报表 ]
+      summary: 库存预警
+      responses:
+        '200': { description: OK }
+
+  /api/reports/finance/receivable:
+    get:
+      tags: [ 报表 ]
+      summary: 应收汇总
+      responses:
+        '200': { description: OK }
+
+  /api/reports/finance/payable:
+    get:
+      tags: [ 报表 ]
+      summary: 应付汇总
       responses:
         '200': { description: OK }
 

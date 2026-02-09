@@ -40,4 +40,8 @@ public class ReceivableService extends ServiceImpl<ReceivableMapper, Receivable>
         receiptService.save(receipt);
         return receipt;
     }
+
+    public Receivable getByOrderId(Long orderId) {
+        return lambdaQuery().eq(Receivable::getOrderId, orderId).one();
+    }
 }
