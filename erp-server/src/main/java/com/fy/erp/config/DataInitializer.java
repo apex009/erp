@@ -1,0 +1,91 @@
+package com.fy.erp.config;
+
+import com.fy.erp.entities.SysDept;
+import com.fy.erp.entities.SysRole;
+import com.fy.erp.entities.SysUser;
+import com.fy.erp.entities.SysUserRole;
+import com.fy.erp.service.SysDeptService;
+import com.fy.erp.service.SysRoleService;
+import com.fy.erp.service.SysUserRoleService;
+import com.fy.erp.service.SysUserService;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.stereotype.Component;
+
+@Component
+public class DataInitializer implements CommandLineRunner {
+    private final SysUserService userService;
+    private final SysRoleService roleService;
+    private final SysDeptService deptService;
+    private final SysUserRoleService userRoleService;
+
+    public DataInitializer(SysUserService userService,
+                           SysRoleService roleService,
+                           SysDeptService deptService,
+                           SysUserRoleService userRoleService) {
+        this.userService = userService;
+        this.roleService = roleService;
+        this.deptService = deptService;
+        this.userRoleService = userRoleService;
+    }
+
+    @Override
+    public void run(String... args) {
+        SysDept dept = deptService.lambdaQuery()
+                .eq(SysDept::getDeptName, "Admin")
+                .orderByAsc(SysDept::getId)
+                .list()
+                .stream()
+                .findFirst()
+                .orElse(null);
+        if (dept == null) {
+            dept = new SysDept();
+            dept.setDeptName("Admin");
+            dept.setLeader("System");
+            dept.setStatus(1);
+            deptService.save(dept);
+        }
+
+        SysRole role = roleService.lambdaQuery()
+                .eq(SysRole::getRoleCode, "ADMIN")
+                .orderByAsc(SysRole::getId)
+                .list()
+                .stream()
+                .findFirst()
+                .orElse(null);
+        if (role == null) {
+            role = new SysRole();
+            role.setRoleCode("ADMIN");
+            role.setRoleName("Administrator");
+            role.setStatus(1);
+            roleService.save(role);
+        }
+
+        SysUser user = userService.lambdaQuery()
+                .eq(SysUser::getUsername, "admin")
+                .orderByAsc(SysUser::getId)
+                .list()
+                .stream()
+                .findFirst()
+                .orElse(null);
+        if (user == null) {
+            user = new SysUser();
+            user.setDeptId(dept.getId());
+            user.setUsername("admin");
+            user.setNickname("Administrator");
+            user.setStatus(1);
+            userService.setPassword(user, "123456");
+            userService.save(user);
+        }
+
+        boolean hasUserRole = userRoleService.lambdaQuery()
+                .eq(SysUserRole::getUserId, user.getId())
+                .eq(SysUserRole::getRoleId, role.getId())
+                .exists();
+        if (!hasUserRole) {
+            SysUserRole userRole = new SysUserRole();
+            userRole.setUserId(user.getId());
+            userRole.setRoleId(role.getId());
+            userRoleService.save(userRole);
+        }
+    }
+}
