@@ -15,4 +15,10 @@ public class Receivable extends BaseEntity {
     private BigDecimal amount;
     private BigDecimal paidAmount;
     private Integer status;
+
+    @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+    private String customerName;
+
+    @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+    private String sourceOrderNo;
 }

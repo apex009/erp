@@ -14,4 +14,16 @@ public class Stock extends BaseEntity {
     private Long warehouseId;
     private BigDecimal quantity;
     private BigDecimal safeStock;
+
+    @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+    private String productName;
+
+    @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+    private String productSku;
+
+    @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+    private String unit;
+
+    @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+    private String warehouseName;
 }

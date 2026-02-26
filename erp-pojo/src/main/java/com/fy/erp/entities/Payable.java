@@ -15,4 +15,10 @@ public class Payable extends BaseEntity {
     private BigDecimal amount;
     private BigDecimal paidAmount;
     private Integer status;
+
+    @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+    private String supplierName;
+
+    @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+    private String sourceOrderNo;
 }

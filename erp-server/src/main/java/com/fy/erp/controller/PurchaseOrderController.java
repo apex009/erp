@@ -26,10 +26,10 @@ public class PurchaseOrderController {
 
     @GetMapping
     public Result<Page<PurchaseOrder>> page(@RequestParam(defaultValue = "1") long page,
-                                            @RequestParam(defaultValue = "10") long size,
-                                            @RequestParam(required = false) String orderNo,
-                                            @RequestParam(required = false) Long supplierId,
-                                            @RequestParam(required = false) Integer status) {
+            @RequestParam(defaultValue = "10") long size,
+            @RequestParam(required = false) String orderNo,
+            @RequestParam(required = false) Long supplierId,
+            @RequestParam(required = false) Integer status) {
         LambdaQueryWrapper<PurchaseOrder> wrapper = new LambdaQueryWrapper<>();
         if (orderNo != null && !orderNo.isBlank()) {
             wrapper.like(PurchaseOrder::getOrderNo, orderNo);
@@ -40,7 +40,7 @@ public class PurchaseOrderController {
         if (status != null) {
             wrapper.eq(PurchaseOrder::getStatus, status);
         }
-        return Result.success(orderService.page(new Page<>(page, size), wrapper));
+        return Result.success(orderService.pageWithSupplier(new Page<PurchaseOrder>(page, size), wrapper));
     }
 
     @GetMapping("/{id}")
@@ -50,7 +50,8 @@ public class PurchaseOrderController {
 
     @GetMapping("/{id}/items")
     public Result<List<PurchaseItem>> items(@PathVariable Long id) {
-        return Result.success(itemService.list(new LambdaQueryWrapper<PurchaseItem>().eq(PurchaseItem::getOrderId, id)));
+        return Result
+                .success(itemService.list(new LambdaQueryWrapper<PurchaseItem>().eq(PurchaseItem::getOrderId, id)));
     }
 
     @PostMapping
@@ -66,6 +67,11 @@ public class PurchaseOrderController {
     @PostMapping("/{id}/cancel")
     public Result<PurchaseOrder> cancel(@PathVariable Long id) {
         return Result.success(orderService.cancel(id));
+    }
+
+    @PostMapping("/{id}/inbound")
+    public Result<PurchaseOrder> inbound(@PathVariable Long id) {
+        return Result.success(orderService.inbound(id));
     }
 
     @PostMapping("/{id}/return")

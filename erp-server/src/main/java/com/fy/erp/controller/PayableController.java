@@ -26,9 +26,9 @@ public class PayableController {
 
     @GetMapping
     public Result<Page<Payable>> page(@RequestParam(defaultValue = "1") long page,
-                                      @RequestParam(defaultValue = "10") long size,
-                                      @RequestParam(required = false) Long supplierId,
-                                      @RequestParam(required = false) Integer status) {
+            @RequestParam(defaultValue = "10") long size,
+            @RequestParam(required = false) Long supplierId,
+            @RequestParam(required = false) Integer status) {
         LambdaQueryWrapper<Payable> wrapper = new LambdaQueryWrapper<>();
         if (supplierId != null) {
             wrapper.eq(Payable::getSupplierId, supplierId);
@@ -36,7 +36,7 @@ public class PayableController {
         if (status != null) {
             wrapper.eq(Payable::getStatus, status);
         }
-        return Result.success(payableService.page(new Page<>(page, size), wrapper));
+        return Result.success(payableService.pageWithNames(new Page<>(page, size), wrapper));
     }
 
     @GetMapping("/{id}")

@@ -5,6 +5,7 @@ import com.fy.erp.dto.report.LowStockItem;
 import com.fy.erp.dto.report.SalesAmountByDay;
 import com.fy.erp.dto.report.SalesByCustomer;
 import com.fy.erp.dto.report.SalesByProduct;
+import com.fy.erp.dto.report.SalesFunnelItem;
 import com.fy.erp.result.Result;
 import com.fy.erp.service.ReportService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,6 +40,11 @@ public class ReportController {
     public Result<List<SalesByProduct>> salesByProduct(@RequestParam String start,
                                                        @RequestParam String end) {
         return Result.success(reportService.salesByProduct(start, end));
+    }
+
+    @GetMapping("/sales/funnel")
+    public Result<List<SalesFunnelItem>> salesFunnel() {
+        return Result.success(reportService.salesFunnel());
     }
 
     @GetMapping("/inventory/low-stock")

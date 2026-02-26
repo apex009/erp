@@ -26,9 +26,9 @@ public class ReceivableController {
 
     @GetMapping
     public Result<Page<Receivable>> page(@RequestParam(defaultValue = "1") long page,
-                                         @RequestParam(defaultValue = "10") long size,
-                                         @RequestParam(required = false) Long customerId,
-                                         @RequestParam(required = false) Integer status) {
+            @RequestParam(defaultValue = "10") long size,
+            @RequestParam(required = false) Long customerId,
+            @RequestParam(required = false) Integer status) {
         LambdaQueryWrapper<Receivable> wrapper = new LambdaQueryWrapper<>();
         if (customerId != null) {
             wrapper.eq(Receivable::getCustomerId, customerId);
@@ -36,7 +36,7 @@ public class ReceivableController {
         if (status != null) {
             wrapper.eq(Receivable::getStatus, status);
         }
-        return Result.success(receivableService.page(new Page<>(page, size), wrapper));
+        return Result.success(receivableService.pageWithNames(new Page<>(page, size), wrapper));
     }
 
     @GetMapping("/{id}")
@@ -51,6 +51,7 @@ public class ReceivableController {
 
     @PostMapping("/{id}/receipt")
     public Result<Receipt> receive(@PathVariable Long id, @Valid @RequestBody ReceiptCreateRequest request) {
-        return Result.success(receivableService.receive(id, request.getAmount(), request.getMethod(), request.getRemark()));
+        return Result
+                .success(receivableService.receive(id, request.getAmount(), request.getMethod(), request.getRemark()));
     }
 }

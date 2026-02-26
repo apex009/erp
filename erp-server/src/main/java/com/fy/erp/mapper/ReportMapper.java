@@ -5,6 +5,7 @@ import com.fy.erp.dto.report.LowStockItem;
 import com.fy.erp.dto.report.SalesAmountByDay;
 import com.fy.erp.dto.report.SalesByCustomer;
 import com.fy.erp.dto.report.SalesByProduct;
+import com.fy.erp.dto.report.SalesFunnelItem;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -14,14 +15,14 @@ import java.util.List;
 @Mapper
 public interface ReportMapper {
     @Select("""
-            SELECT DATE_FORMAT(create_time, '%Y-%m-%d') AS day,
+            SELECT DATE_FORMAT(create_time, '%Y-%m-%d') AS statDate,
                    SUM(total_amount) AS amount
             FROM sales_order
             WHERE deleted = 0
               AND create_time >= #{start}
               AND create_time <= #{end}
             GROUP BY DATE_FORMAT(create_time, '%Y-%m-%d')
-            ORDER BY day
+            ORDER BY statDate
             """)
     List<SalesAmountByDay> salesAmountByDay(@Param("start") String start, @Param("end") String end);
 
@@ -55,6 +56,18 @@ public interface ReportMapper {
             ORDER BY amount DESC
             """)
     List<SalesByProduct> salesByProduct(@Param("start") String start, @Param("end") String end);
+
+    @Select("""
+            SELECT stage AS stage,
+                   COUNT(*) AS count,
+                   IFNULL(SUM(expected_amount), 0) AS amount
+            FROM sales_lead
+            WHERE deleted = 0
+              AND status = 1
+            GROUP BY stage
+            ORDER BY count DESC
+            """)
+    List<SalesFunnelItem> salesFunnel();
 
     @Select("""
             SELECT s.product_id AS productId,

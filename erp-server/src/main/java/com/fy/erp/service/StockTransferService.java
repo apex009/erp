@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fy.erp.entities.StockRecord;
 import com.fy.erp.entities.StockTransfer;
 import com.fy.erp.entities.StockTransferItem;
+import com.fy.erp.enums.StockBizType;
+import com.fy.erp.enums.StockRecordType;
 import com.fy.erp.exception.BizException;
 import com.fy.erp.mapper.StockTransferMapper;
 import com.fy.erp.util.OrderNoUtil;
@@ -54,20 +56,20 @@ public class StockTransferService extends ServiceImpl<StockTransferMapper, Stock
             out.setProductId(item.getProductId());
             out.setWarehouseId(fromWarehouseId);
             out.setQuantity(item.getQuantity());
-            out.setRecordType("OUT");
-            out.setBizType("TRANSFER");
+            out.setRecordType(StockRecordType.OUT.getCode());
+            out.setBizType(StockBizType.TRANSFER.getCode());
             out.setBizId(transfer.getId());
-            out.setRemark("transfer out");
+            out.setRemark("调拨出库");
             stockRecordService.save(out);
 
             StockRecord in = new StockRecord();
             in.setProductId(item.getProductId());
             in.setWarehouseId(toWarehouseId);
             in.setQuantity(item.getQuantity());
-            in.setRecordType("IN");
-            in.setBizType("TRANSFER");
+            in.setRecordType(StockRecordType.IN.getCode());
+            in.setBizType(StockBizType.TRANSFER.getCode());
             in.setBizId(transfer.getId());
-            in.setRemark("transfer in");
+            in.setRemark("调拨入库");
             stockRecordService.save(in);
         }
         transfer.setTotalQuantity(totalQty);

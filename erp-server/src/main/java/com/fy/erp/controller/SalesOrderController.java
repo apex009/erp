@@ -26,10 +26,10 @@ public class SalesOrderController {
 
     @GetMapping
     public Result<Page<SalesOrder>> page(@RequestParam(defaultValue = "1") long page,
-                                         @RequestParam(defaultValue = "10") long size,
-                                         @RequestParam(required = false) String orderNo,
-                                         @RequestParam(required = false) Long customerId,
-                                         @RequestParam(required = false) Integer status) {
+            @RequestParam(defaultValue = "10") long size,
+            @RequestParam(required = false) String orderNo,
+            @RequestParam(required = false) Long customerId,
+            @RequestParam(required = false) Integer status) {
         LambdaQueryWrapper<SalesOrder> wrapper = new LambdaQueryWrapper<>();
         if (orderNo != null && !orderNo.isBlank()) {
             wrapper.like(SalesOrder::getOrderNo, orderNo);
@@ -40,7 +40,7 @@ public class SalesOrderController {
         if (status != null) {
             wrapper.eq(SalesOrder::getStatus, status);
         }
-        return Result.success(orderService.page(new Page<>(page, size), wrapper));
+        return Result.success(orderService.pageWithCustomer(new Page<SalesOrder>(page, size), wrapper));
     }
 
     @GetMapping("/{id}")
@@ -61,6 +61,11 @@ public class SalesOrderController {
     @PostMapping("/{id}/approve")
     public Result<SalesOrder> approve(@PathVariable Long id) {
         return Result.success(orderService.approve(id));
+    }
+
+    @PostMapping("/{id}/outbound")
+    public Result<SalesOrder> outbound(@PathVariable Long id) {
+        return Result.success(orderService.outbound(id));
     }
 
     @PostMapping("/{id}/cancel")

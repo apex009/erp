@@ -16,6 +16,12 @@ public class PermissionController {
         this.permissionService = permissionService;
     }
 
+    @PostMapping("/sync")
+    public Result<Void> sync() {
+        permissionService.syncPermissions();
+        return Result.success();
+    }
+
     @GetMapping
     public Result<Page<SysPermission>> page(@RequestParam(defaultValue = "1") long page,
                                             @RequestParam(defaultValue = "10") long size,

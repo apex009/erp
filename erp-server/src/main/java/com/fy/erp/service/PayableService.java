@@ -13,9 +13,14 @@ import java.math.BigDecimal;
 @Service
 public class PayableService extends ServiceImpl<PayableMapper, Payable> {
     private final PaymentService paymentService;
+    private final SupplierService supplierService;
+    private final PurchaseOrderService purchaseOrderService;
 
-    public PayableService(PaymentService paymentService) {
+    public PayableService(PaymentService paymentService, SupplierService supplierService,
+            @org.springframework.context.annotation.Lazy PurchaseOrderService purchaseOrderService) {
         this.paymentService = paymentService;
+        this.supplierService = supplierService;
+        this.purchaseOrderService = purchaseOrderService;
     }
 
     @Transactional
@@ -43,5 +48,39 @@ public class PayableService extends ServiceImpl<PayableMapper, Payable> {
 
     public Payable getByOrderId(Long orderId) {
         return lambdaQuery().eq(Payable::getOrderId, orderId).one();
+    }
+
+    public com.baomidou.mybatisplus.extension.plugins.pagination.Page<Payable> pageWithNames(
+            com.baomidou.mybatisplus.extension.plugins.pagination.Page<Payable> page,
+            com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Payable> wrapper) {
+        com.baomidou.mybatisplus.extension.plugins.pagination.Page<Payable> result = page(page, wrapper);
+        if (result.getRecords() != null && !result.getRecords().isEmpty()) {
+            java.util.Set<Long> supplierIds = result.getRecords().stream().map(Payable::getSupplierId)
+                    .collect(java.util.stream.Collectors.toSet());
+            java.util.Set<Long> orderIds = result.getRecords().stream().map(Payable::getOrderId)
+                    .collect(java.util.stream.Collectors.toSet());
+
+            java.util.Map<Long, com.fy.erp.entities.Supplier> supplierMap = new java.util.HashMap<>();
+            if (!supplierIds.isEmpty()) {
+                supplierMap = supplierService.listByIds(supplierIds).stream()
+                        .collect(java.util.stream.Collectors.toMap(com.fy.erp.entities.Supplier::getId, s -> s));
+            }
+
+            java.util.Map<Long, com.fy.erp.entities.PurchaseOrder> orderMap = new java.util.HashMap<>();
+            if (!orderIds.isEmpty()) {
+                orderMap = purchaseOrderService.listByIds(orderIds).stream()
+                        .collect(java.util.stream.Collectors.toMap(com.fy.erp.entities.PurchaseOrder::getId, o -> o));
+            }
+
+            for (Payable payable : result.getRecords()) {
+                if (payable.getSupplierId() != null && supplierMap.containsKey(payable.getSupplierId())) {
+                    payable.setSupplierName(supplierMap.get(payable.getSupplierId()).getName());
+                }
+                if (payable.getOrderId() != null && orderMap.containsKey(payable.getOrderId())) {
+                    payable.setSourceOrderNo(orderMap.get(payable.getOrderId()).getOrderNo());
+                }
+            }
+        }
+        return result;
     }
 }

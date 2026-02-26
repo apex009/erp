@@ -5,6 +5,7 @@ import com.fy.erp.dto.report.LowStockItem;
 import com.fy.erp.dto.report.SalesAmountByDay;
 import com.fy.erp.dto.report.SalesByCustomer;
 import com.fy.erp.dto.report.SalesByProduct;
+import com.fy.erp.dto.report.SalesFunnelItem;
 import com.fy.erp.mapper.ReportMapper;
 import org.springframework.stereotype.Service;
 
@@ -28,6 +29,10 @@ public class ReportService {
 
     public List<SalesByProduct> salesByProduct(String start, String end) {
         return reportMapper.salesByProduct(start, end);
+    }
+
+    public List<SalesFunnelItem> salesFunnel() {
+        return reportMapper.salesFunnel();
     }
 
     public List<LowStockItem> lowStock() {

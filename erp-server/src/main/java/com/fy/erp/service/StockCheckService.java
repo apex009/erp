@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fy.erp.entities.StockCheck;
 import com.fy.erp.entities.StockCheckItem;
 import com.fy.erp.entities.StockRecord;
+import com.fy.erp.enums.StockBizType;
+import com.fy.erp.enums.StockRecordType;
 import com.fy.erp.mapper.StockCheckMapper;
 import com.fy.erp.util.OrderNoUtil;
 import org.springframework.stereotype.Service;
@@ -52,10 +54,12 @@ public class StockCheckService extends ServiceImpl<StockCheckMapper, StockCheck>
             record.setProductId(item.getProductId());
             record.setWarehouseId(warehouseId);
             record.setQuantity(item.getDiffQty().abs());
-            record.setRecordType(item.getDiffQty().compareTo(BigDecimal.ZERO) >= 0 ? "IN" : "OUT");
-            record.setBizType("STOCK_CHECK");
+            record.setRecordType(item.getDiffQty().compareTo(BigDecimal.ZERO) >= 0
+                    ? StockRecordType.IN.getCode()
+                    : StockRecordType.OUT.getCode());
+            record.setBizType(StockBizType.STOCK_CHECK.getCode());
             record.setBizId(check.getId());
-            record.setRemark("stock check adjust");
+            record.setRemark("盘点调整");
             stockRecordService.save(record);
         }
         return check;

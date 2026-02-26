@@ -6,6 +6,6 @@ import java.math.BigDecimal;
 
 @Data
 public class SalesAmountByDay {
-    private String day;
+    private String statDate;
     private BigDecimal amount;
 }

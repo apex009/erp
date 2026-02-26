@@ -13,6 +13,7 @@ tags:
   - name: 部门
   - name: 角色
   - name: 权限
+  - name: 商机
   - name: 客户
   - name: 供应商
   - name: 商品
@@ -669,10 +670,12 @@ paths:
           schema: { type: integer, format: int64 }
         - in: query
           name: recordType
-          schema: { type: string }
+          schema: { type: integer }
+          description: 1=入库, 2=出库
         - in: query
           name: bizType
-          schema: { type: string }
+          schema: { type: integer }
+          description: 1=采购, 2=销售, 3=调拨, 4=盘点
       responses:
         '200': { description: OK }
 
@@ -1223,6 +1226,176 @@ paths:
     get:
       tags: [ 报表 ]
       summary: 应付汇总
+      responses:
+        '200': { description: OK }
+
+  /api/leads:
+    get:
+      tags: [ 商机 ]
+      summary: 商机分页
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: size
+          schema: { type: integer, default: 10 }
+        - in: query
+          name: keyword
+          schema: { type: string }
+        - in: query
+          name: stage
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: integer }
+      responses:
+        '200': { description: OK }
+    post:
+      tags: [ 商机 ]
+      summary: 新增商机
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: OK }
+
+  /api/leads/{id}:
+    get:
+      tags: [ 商机 ]
+      summary: 商机详情
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: OK }
+    put:
+      tags: [ 商机 ]
+      summary: 修改商机
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: OK }
+    delete:
+      tags: [ 商机 ]
+      summary: 删除商机
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: OK }
+
+  /api/purchase-requests:
+    get:
+      tags: [ 采购订单 ]
+      summary: 采购申请分页
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: size
+          schema: { type: integer, default: 10 }
+        - in: query
+          name: requestNo
+          schema: { type: string }
+        - in: query
+          name: supplierId
+          schema: { type: integer, format: int64 }
+        - in: query
+          name: status
+          schema: { type: integer }
+      responses:
+        '200': { description: OK }
+    post:
+      tags: [ 采购订单 ]
+      summary: 新增采购申请
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: OK }
+
+  /api/purchase-requests/{id}:
+    get:
+      tags: [ 采购订单 ]
+      summary: 采购申请详情
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: OK }
+
+  /api/purchase-requests/{id}/items:
+    get:
+      tags: [ 采购订单 ]
+      summary: 采购申请明细
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: OK }
+
+  /api/purchase-requests/{id}/approve:
+    post:
+      tags: [ 采购订单 ]
+      summary: 采购申请审核
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: OK }
+
+  /api/purchase-requests/{id}/reject:
+    post:
+      tags: [ 采购订单 ]
+      summary: 采购申请驳回
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: OK }
+
+  /api/purchase-requests/{id}/to-order:
+    post:
+      tags: [ 采购订单 ]
+      summary: 采购申请转订单
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: OK }
+
+  /api/reports/sales/funnel:
+    get:
+      tags: [ 报表 ]
+      summary: 销售漏斗
       responses:
         '200': { description: OK }
 

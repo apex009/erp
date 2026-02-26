@@ -18,9 +18,9 @@ public class StockController {
 
     @GetMapping
     public Result<Page<Stock>> page(@RequestParam(defaultValue = "1") long page,
-                                    @RequestParam(defaultValue = "10") long size,
-                                    @RequestParam(required = false) Long productId,
-                                    @RequestParam(required = false) Long warehouseId) {
+            @RequestParam(defaultValue = "10") long size,
+            @RequestParam(required = false) Long productId,
+            @RequestParam(required = false) Long warehouseId) {
         LambdaQueryWrapper<Stock> wrapper = new LambdaQueryWrapper<>();
         if (productId != null) {
             wrapper.eq(Stock::getProductId, productId);
@@ -28,7 +28,7 @@ public class StockController {
         if (warehouseId != null) {
             wrapper.eq(Stock::getWarehouseId, warehouseId);
         }
-        return Result.success(stockService.page(new Page<>(page, size), wrapper));
+        return Result.success(stockService.pageWithNames(new Page<>(page, size), wrapper));
     }
 
     @PutMapping("/{id}")
