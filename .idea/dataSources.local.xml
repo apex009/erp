@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project version="4">
-  <component name="dataSourceStorageLocal" created-in="IU-241.14494.240">
-    <data-source name="erp_light@localhost" uuid="539ba478-076b-44f2-bce6-5a1795afa5dc">
-      <database-info product="" version="" jdbc-version="" driver-name="" driver-version="" dbms="MYSQL" />
-      <schema-mapping />
-    </data-source>
-  </component>
-</project>
