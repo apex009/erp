@@ -4,10 +4,6 @@
   <component name="MavenProjectsManager">
     <option name="originalFiles">
       <list>
-        <option value="$PROJECT_DIR$/erp-common/pom.xml" />
-        <option value="$PROJECT_DIR$/erp-pojo/pom.xml" />
-        <option value="$PROJECT_DIR$/erp-server/erp-server/pom.xml" />
-        <option value="$PROJECT_DIR$/erp-server/pom.xml" />
         <option value="$PROJECT_DIR$/pom.xml" />
       </list>
     </option>
