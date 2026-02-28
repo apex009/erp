@@ -26,19 +26,19 @@ public class ReportController {
 
     @GetMapping("/sales/day")
     public Result<List<SalesAmountByDay>> salesByDay(@RequestParam String start,
-                                                     @RequestParam String end) {
+            @RequestParam String end) {
         return Result.success(reportService.salesAmountByDay(start, end));
     }
 
     @GetMapping("/sales/customer")
     public Result<List<SalesByCustomer>> salesByCustomer(@RequestParam String start,
-                                                         @RequestParam String end) {
+            @RequestParam String end) {
         return Result.success(reportService.salesByCustomer(start, end));
     }
 
     @GetMapping("/sales/product")
     public Result<List<SalesByProduct>> salesByProduct(@RequestParam String start,
-                                                       @RequestParam String end) {
+            @RequestParam String end) {
         return Result.success(reportService.salesByProduct(start, end));
     }
 
@@ -60,5 +60,10 @@ public class ReportController {
     @GetMapping("/finance/payable")
     public Result<FinanceSummary> payableSummary() {
         return Result.success(reportService.payableSummary());
+    }
+
+    @GetMapping("/dashboard/summary")
+    public Result<com.fy.erp.dto.report.DashboardSummary> dashboardSummary() {
+        return Result.success(reportService.dashboardSummary());
     }
 }

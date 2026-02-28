@@ -29,3 +29,24 @@ export function getLowStock() {
     method: 'get'
   })
 }
+
+export function getDashboardSummary() {
+  return request({
+    url: '/reports/dashboard/summary',
+    method: 'get'
+  })
+}
+
+export function getFinanceReceivable() {
+  return request({
+    url: '/reports/finance/receivable',
+    method: 'get'
+  })
+}
+
+export function getFinancePayable() {
+  return request({
+    url: '/reports/finance/payable',
+    method: 'get'
+  })
+}

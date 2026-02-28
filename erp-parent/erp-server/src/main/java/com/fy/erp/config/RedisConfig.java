@@ -61,7 +61,7 @@ public class RedisConfig {
 
     // 配置序列化
     RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
-        .entryTtl(Duration.ofHours(1))
+        .entryTtl(Duration.ofMinutes(5))
         .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(redisSerializer))
         .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jackson2JsonRedisSerializer))
         .disableCachingNullValues();
