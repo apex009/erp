@@ -2,8 +2,7 @@ package com.fy.erp.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fy.erp.dto.StockCheckCreateRequest;
-import com.fy.erp.dto.StockCheckItemRequest;
+import com.fy.erp.dto.StockCheckCreateRequestDTO;
 import com.fy.erp.entities.StockCheck;
 import com.fy.erp.entities.StockCheckItem;
 import com.fy.erp.result.Result;
@@ -27,8 +26,8 @@ public class StockCheckController {
 
     @GetMapping
     public Result<Page<StockCheck>> page(@RequestParam(defaultValue = "1") long page,
-                                         @RequestParam(defaultValue = "10") long size,
-                                         @RequestParam(required = false) Long warehouseId) {
+            @RequestParam(defaultValue = "10") long size,
+            @RequestParam(required = false) Long warehouseId) {
         LambdaQueryWrapper<StockCheck> wrapper = new LambdaQueryWrapper<>();
         if (warehouseId != null) {
             wrapper.eq(StockCheck::getWarehouseId, warehouseId);
@@ -43,11 +42,12 @@ public class StockCheckController {
 
     @GetMapping("/{id}/items")
     public Result<List<StockCheckItem>> items(@PathVariable Long id) {
-        return Result.success(itemService.list(new LambdaQueryWrapper<StockCheckItem>().eq(StockCheckItem::getCheckId, id)));
+        return Result
+                .success(itemService.list(new LambdaQueryWrapper<StockCheckItem>().eq(StockCheckItem::getCheckId, id)));
     }
 
     @PostMapping
-    public Result<StockCheck> create(@Valid @RequestBody StockCheckCreateRequest request) {
+    public Result<StockCheck> create(@Valid @RequestBody StockCheckCreateRequestDTO request) {
         List<StockCheckItem> items = request.getItems().stream().map(itemReq -> {
             StockCheckItem item = new StockCheckItem();
             item.setProductId(itemReq.getProductId());

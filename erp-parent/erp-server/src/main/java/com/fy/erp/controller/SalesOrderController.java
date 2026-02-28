@@ -2,7 +2,7 @@ package com.fy.erp.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fy.erp.dto.SalesOrderCreateRequest;
+import com.fy.erp.dto.SalesOrderCreateRequestDTO;
 import com.fy.erp.entities.SalesItem;
 import com.fy.erp.entities.SalesOrder;
 import com.fy.erp.result.Result;
@@ -54,7 +54,7 @@ public class SalesOrderController {
     }
 
     @PostMapping
-    public Result<SalesOrder> create(@Valid @RequestBody SalesOrderCreateRequest request) {
+    public Result<SalesOrder> create(@Valid @RequestBody SalesOrderCreateRequestDTO request) {
         return Result.success(orderService.createOrder(request));
     }
 

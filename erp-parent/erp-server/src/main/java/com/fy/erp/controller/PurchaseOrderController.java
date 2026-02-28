@@ -2,7 +2,7 @@ package com.fy.erp.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fy.erp.dto.PurchaseOrderCreateRequest;
+import com.fy.erp.dto.PurchaseOrderCreateRequestDTO;
 import com.fy.erp.entities.PurchaseItem;
 import com.fy.erp.entities.PurchaseOrder;
 import com.fy.erp.result.Result;
@@ -55,7 +55,7 @@ public class PurchaseOrderController {
     }
 
     @PostMapping
-    public Result<PurchaseOrder> create(@Valid @RequestBody PurchaseOrderCreateRequest request) {
+    public Result<PurchaseOrder> create(@Valid @RequestBody PurchaseOrderCreateRequestDTO request) {
         return Result.success(orderService.createOrder(request));
     }
 

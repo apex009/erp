@@ -1,8 +1,8 @@
 package com.fy.erp.service;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.fy.erp.dto.PurchaseOrderCreateRequest;
-import com.fy.erp.dto.PurchaseOrderItemRequest;
+import com.fy.erp.dto.PurchaseOrderCreateRequestDTO;
+import com.fy.erp.dto.PurchaseOrderItemRequestDTO;
 import com.fy.erp.entities.Payable;
 import com.fy.erp.entities.PurchaseItem;
 import com.fy.erp.entities.PurchaseOrder;
@@ -39,7 +39,7 @@ public class PurchaseOrderService extends ServiceImpl<PurchaseOrderMapper, Purch
     }
 
     @Transactional
-    public PurchaseOrder createOrder(PurchaseOrderCreateRequest request) {
+    public PurchaseOrder createOrder(PurchaseOrderCreateRequestDTO request) {
         PurchaseOrder order = new PurchaseOrder();
         order.setOrderNo(OrderNoUtil.generate("PO"));
         order.setSupplierId(request.getSupplierId());
@@ -49,7 +49,7 @@ public class PurchaseOrderService extends ServiceImpl<PurchaseOrderMapper, Purch
         save(order);
 
         BigDecimal total = BigDecimal.ZERO;
-        for (PurchaseOrderItemRequest itemReq : request.getItems()) {
+        for (PurchaseOrderItemRequestDTO itemReq : request.getItems()) {
             BigDecimal amount = itemReq.getPrice().multiply(itemReq.getQuantity());
             total = total.add(amount);
 

@@ -1,8 +1,8 @@
 package com.fy.erp.service;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.fy.erp.dto.SalesOrderCreateRequest;
-import com.fy.erp.dto.SalesOrderItemRequest;
+import com.fy.erp.dto.SalesOrderCreateRequestDTO;
+import com.fy.erp.dto.SalesOrderItemRequestDTO;
 import com.fy.erp.entities.Receivable;
 import com.fy.erp.entities.SalesItem;
 import com.fy.erp.entities.SalesOrder;
@@ -40,7 +40,7 @@ public class SalesOrderService extends ServiceImpl<SalesOrderMapper, SalesOrder>
 
     @Transactional
     @CacheEvict(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, allEntries = true)
-    public SalesOrder createOrder(SalesOrderCreateRequest request) {
+    public SalesOrder createOrder(SalesOrderCreateRequestDTO request) {
         SalesOrder order = new SalesOrder();
         order.setOrderNo(OrderNoUtil.generate("SO"));
         order.setCustomerId(request.getCustomerId());
@@ -50,7 +50,7 @@ public class SalesOrderService extends ServiceImpl<SalesOrderMapper, SalesOrder>
         save(order);
 
         BigDecimal total = BigDecimal.ZERO;
-        for (SalesOrderItemRequest itemReq : request.getItems()) {
+        for (SalesOrderItemRequestDTO itemReq : request.getItems()) {
             BigDecimal amount = itemReq.getPrice().multiply(itemReq.getQuantity());
             total = total.add(amount);
 

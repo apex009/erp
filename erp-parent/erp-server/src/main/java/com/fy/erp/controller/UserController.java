@@ -2,8 +2,8 @@ package com.fy.erp.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fy.erp.dto.UserCreateRequest;
-import com.fy.erp.dto.UserUpdateRequest;
+import com.fy.erp.dto.UserCreateRequestDTO;
+import com.fy.erp.dto.UserUpdateRequestDTO;
 import com.fy.erp.entities.SysUser;
 import com.fy.erp.entities.SysUserRole;
 import com.fy.erp.exception.BizException;
@@ -28,10 +28,10 @@ public class UserController {
 
     @GetMapping
     public Result<Page<SysUser>> page(@RequestParam(defaultValue = "1") long page,
-                                      @RequestParam(defaultValue = "10") long size,
-                                      @RequestParam(required = false) String keyword,
-                                      @RequestParam(required = false) Long deptId,
-                                      @RequestParam(required = false) Integer status) {
+            @RequestParam(defaultValue = "10") long size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long deptId,
+            @RequestParam(required = false) Integer status) {
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
         if (keyword != null && !keyword.isBlank()) {
             wrapper.and(w -> w.like(SysUser::getUsername, keyword)
@@ -53,7 +53,7 @@ public class UserController {
     }
 
     @PostMapping
-    public Result<SysUser> create(@Valid @RequestBody UserCreateRequest request) {
+    public Result<SysUser> create(@Valid @RequestBody UserCreateRequestDTO request) {
         if (userService.findByUsername(request.getUsername()) != null) {
             throw new BizException(400, "username exists");
         }
@@ -71,7 +71,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    public Result<SysUser> update(@PathVariable Long id, @RequestBody UserUpdateRequest request) {
+    public Result<SysUser> update(@PathVariable Long id, @RequestBody UserUpdateRequestDTO request) {
         SysUser user = userService.getById(id);
         if (user == null) {
             throw new BizException(404, "user not found");

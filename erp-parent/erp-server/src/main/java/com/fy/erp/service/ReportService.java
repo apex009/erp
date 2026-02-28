@@ -48,17 +48,17 @@ public class ReportService {
     // ======================== 子报表 ========================
 
     @org.springframework.cache.annotation.Cacheable(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, key = "'sales:day:' + #start + ':' + #end + ':' + #salesUserId")
-    public List<SalesAmountByDay> salesAmountByDay(String start, String end, Long salesUserId) {
+    public List<SalesAmountByDayDTO> salesAmountByDay(String start, String end, Long salesUserId) {
         return reportMapper.salesAmountByDay(normalizeStartDate(start), normalizeEndDate(end), salesUserId);
     }
 
     @org.springframework.cache.annotation.Cacheable(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, key = "'sales:customer:' + #start + ':' + #end + ':' + #salesUserId")
-    public List<SalesByCustomer> salesByCustomer(String start, String end, Long salesUserId) {
+    public List<SalesByCustomerDTO> salesByCustomer(String start, String end, Long salesUserId) {
         return reportMapper.salesByCustomer(normalizeStartDate(start), normalizeEndDate(end), salesUserId);
     }
 
     @org.springframework.cache.annotation.Cacheable(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, key = "'sales:product:' + #start + ':' + #end + ':' + #salesUserId")
-    public List<SalesByProduct> salesByProduct(String start, String end, Long salesUserId) {
+    public List<SalesByProductDTO> salesByProduct(String start, String end, Long salesUserId) {
         return reportMapper.salesByProduct(normalizeStartDate(start), normalizeEndDate(end), salesUserId);
     }
 
@@ -78,7 +78,7 @@ public class ReportService {
      * - ownerUserId 来自 resolveScope()
      */
     @org.springframework.cache.annotation.Cacheable(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, key = "'sales:funnel:' + #ownerUserId + ':' + #start + ':' + #end")
-    public List<SalesFunnelItem> salesFunnel(Long ownerUserId, String start, String end) {
+    public List<SalesFunnelItemDTO> salesFunnel(Long ownerUserId, String start, String end) {
         // 默认最近 30 天
         if (start == null || start.isBlank()) {
             start = java.time.LocalDate.now().minusDays(30).toString();
@@ -90,17 +90,17 @@ public class ReportService {
         end = normalizeEndDate(end);
 
         // 1. 查询数据库（可能缺失某些阶段）
-        List<SalesFunnelItem> dbItems = reportMapper.salesFunnel(ownerUserId, start, end);
-        java.util.Map<String, SalesFunnelItem> dbMap = new java.util.HashMap<>();
-        for (SalesFunnelItem item : dbItems) {
+        List<SalesFunnelItemDTO> dbItems = reportMapper.salesFunnel(ownerUserId, start, end);
+        java.util.Map<String, SalesFunnelItemDTO> dbMap = new java.util.HashMap<>();
+        for (SalesFunnelItemDTO item : dbItems) {
             dbMap.put(item.getStageCode(), item);
         }
 
         // 2. 固定阶段顺序 + 补齐缺失阶段
-        List<SalesFunnelItem> result = new java.util.ArrayList<>();
+        List<SalesFunnelItemDTO> result = new java.util.ArrayList<>();
         for (String[] stage : STAGES) {
-            SalesFunnelItem item = dbMap.get(stage[0]);
-            SalesFunnelItem filled = new SalesFunnelItem();
+            SalesFunnelItemDTO item = dbMap.get(stage[0]);
+            SalesFunnelItemDTO filled = new SalesFunnelItemDTO();
             filled.setStageCode(stage[0]);
             filled.setStageName(stage[1]);
             filled.setCount(item != null ? item.getCount() : 0L);
@@ -130,25 +130,25 @@ public class ReportService {
     }
 
     @org.springframework.cache.annotation.Cacheable(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, key = "'inventory:low-stock'")
-    public List<LowStockItem> lowStock() {
+    public List<LowStockItemDTO> lowStock() {
         return reportMapper.lowStock();
     }
 
     @org.springframework.cache.annotation.Cacheable(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, key = "'finance:receivable'")
-    public FinanceSummary receivableSummary() {
+    public FinanceSummaryDTO receivableSummary() {
         return reportMapper.receivableSummary();
     }
 
     @org.springframework.cache.annotation.Cacheable(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, key = "'finance:payable'")
-    public FinanceSummary payableSummary() {
+    public FinanceSummaryDTO payableSummary() {
         return reportMapper.payableSummary();
     }
 
     // ======================== 看板聚合 ========================
 
     @org.springframework.cache.annotation.Cacheable(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, key = "'dashboard:summary:' + #salesUserId")
-    public DashboardSummary dashboardSummary(Long salesUserId) {
-        DashboardSummary summary = new DashboardSummary();
+    public DashboardSummaryDTO dashboardSummary(Long salesUserId) {
+        DashboardSummaryDTO summary = new DashboardSummaryDTO();
 
         // 今日成交（出库口径）
         var sales = reportMapper.todaySalesSummary(salesUserId);
@@ -258,7 +258,7 @@ public class ReportService {
     // ======================== 排行榜 ========================
 
     @org.springframework.cache.annotation.Cacheable(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, key = "'rank:sales:today:' + #top")
-    public List<SalesRankItem> salesRank(int top) {
+    public List<SalesRankItemDTO> salesRank(int top) {
         return reportMapper.salesRank(top);
     }
 

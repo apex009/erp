@@ -2,7 +2,7 @@ package com.fy.erp.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fy.erp.dto.PaymentCreateRequest;
+import com.fy.erp.dto.PaymentCreateRequestDTO;
 import com.fy.erp.entities.Payable;
 import com.fy.erp.entities.Payment;
 import com.fy.erp.result.Result;
@@ -50,7 +50,7 @@ public class PayableController {
     }
 
     @PostMapping("/{id}/payment")
-    public Result<Payment> pay(@PathVariable Long id, @Valid @RequestBody PaymentCreateRequest request) {
+    public Result<Payment> pay(@PathVariable Long id, @Valid @RequestBody PaymentCreateRequestDTO request) {
         return Result.success(payableService.pay(id, request.getAmount(), request.getMethod(), request.getRemark()));
     }
 }

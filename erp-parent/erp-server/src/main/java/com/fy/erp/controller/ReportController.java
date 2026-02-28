@@ -17,28 +17,28 @@ public class ReportController {
     }
 
     @GetMapping("/sales/day")
-    public Result<List<SalesAmountByDay>> salesByDay(@RequestParam String start, @RequestParam String end,
+    public Result<List<SalesAmountByDayDTO>> salesByDay(@RequestParam String start, @RequestParam String end,
             @RequestParam(required = false) Long salesUserId) {
         Long scope = reportService.resolveScope(salesUserId);
         return Result.success(reportService.salesAmountByDay(start, end, scope));
     }
 
     @GetMapping("/sales/customer")
-    public Result<List<SalesByCustomer>> salesByCustomer(@RequestParam String start, @RequestParam String end,
+    public Result<List<SalesByCustomerDTO>> salesByCustomer(@RequestParam String start, @RequestParam String end,
             @RequestParam(required = false) Long salesUserId) {
         Long scope = reportService.resolveScope(salesUserId);
         return Result.success(reportService.salesByCustomer(start, end, scope));
     }
 
     @GetMapping("/sales/product")
-    public Result<List<SalesByProduct>> salesByProduct(@RequestParam String start, @RequestParam String end,
+    public Result<List<SalesByProductDTO>> salesByProduct(@RequestParam String start, @RequestParam String end,
             @RequestParam(required = false) Long salesUserId) {
         Long scope = reportService.resolveScope(salesUserId);
         return Result.success(reportService.salesByProduct(start, end, scope));
     }
 
     @GetMapping("/sales/funnel")
-    public Result<List<SalesFunnelItem>> salesFunnel(
+    public Result<List<SalesFunnelItemDTO>> salesFunnel(
             @RequestParam(required = false) String start,
             @RequestParam(required = false) String end,
             @RequestParam(required = false) Long salesUserId) {
@@ -47,22 +47,22 @@ public class ReportController {
     }
 
     @GetMapping("/inventory/low-stock")
-    public Result<List<LowStockItem>> lowStock() {
+    public Result<List<LowStockItemDTO>> lowStock() {
         return Result.success(reportService.lowStock());
     }
 
     @GetMapping("/finance/receivable")
-    public Result<FinanceSummary> receivableSummary() {
+    public Result<FinanceSummaryDTO> receivableSummary() {
         return Result.success(reportService.receivableSummary());
     }
 
     @GetMapping("/finance/payable")
-    public Result<FinanceSummary> payableSummary() {
+    public Result<FinanceSummaryDTO> payableSummary() {
         return Result.success(reportService.payableSummary());
     }
 
     @GetMapping("/dashboard/summary")
-    public Result<DashboardSummary> dashboardSummary(@RequestParam(required = false) Long salesUserId) {
+    public Result<DashboardSummaryDTO> dashboardSummary(@RequestParam(required = false) Long salesUserId) {
         Long scope = reportService.resolveScope(salesUserId);
         return Result.success(reportService.dashboardSummary(scope));
     }
@@ -71,7 +71,7 @@ public class ReportController {
      * 成交排行榜（≤5分钟延迟，Redis 缓存）
      */
     @GetMapping("/rank/sales")
-    public Result<List<SalesRankItem>> salesRank(@RequestParam(defaultValue = "10") int top) {
+    public Result<List<SalesRankItemDTO>> salesRank(@RequestParam(defaultValue = "10") int top) {
         return Result.success(reportService.salesRank(Math.min(top, 50)));
     }
 }

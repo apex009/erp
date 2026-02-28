@@ -2,7 +2,7 @@ package com.fy.erp.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fy.erp.dto.PurchaseRequestCreateRequest;
+import com.fy.erp.dto.PurchaseRequestCreateRequestDTO;
 import com.fy.erp.entities.PurchaseRequest;
 import com.fy.erp.entities.PurchaseRequestItem;
 import com.fy.erp.result.Result;
@@ -26,10 +26,10 @@ public class PurchaseRequestController {
 
     @GetMapping
     public Result<Page<PurchaseRequest>> page(@RequestParam(defaultValue = "1") long page,
-                                              @RequestParam(defaultValue = "10") long size,
-                                              @RequestParam(required = false) String requestNo,
-                                              @RequestParam(required = false) Long supplierId,
-                                              @RequestParam(required = false) Integer status) {
+            @RequestParam(defaultValue = "10") long size,
+            @RequestParam(required = false) String requestNo,
+            @RequestParam(required = false) Long supplierId,
+            @RequestParam(required = false) Integer status) {
         LambdaQueryWrapper<PurchaseRequest> wrapper = new LambdaQueryWrapper<>();
         if (requestNo != null && !requestNo.isBlank()) {
             wrapper.like(PurchaseRequest::getRequestNo, requestNo);
@@ -50,11 +50,12 @@ public class PurchaseRequestController {
 
     @GetMapping("/{id}/items")
     public Result<List<PurchaseRequestItem>> items(@PathVariable Long id) {
-        return Result.success(itemService.list(new LambdaQueryWrapper<PurchaseRequestItem>().eq(PurchaseRequestItem::getRequestId, id)));
+        return Result.success(itemService
+                .list(new LambdaQueryWrapper<PurchaseRequestItem>().eq(PurchaseRequestItem::getRequestId, id)));
     }
 
     @PostMapping
-    public Result<PurchaseRequest> create(@Valid @RequestBody PurchaseRequestCreateRequest request) {
+    public Result<PurchaseRequest> create(@Valid @RequestBody PurchaseRequestCreateRequestDTO request) {
         return Result.success(requestService.createRequest(request));
     }
 

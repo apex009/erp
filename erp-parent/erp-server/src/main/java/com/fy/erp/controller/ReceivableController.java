@@ -2,7 +2,7 @@ package com.fy.erp.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fy.erp.dto.ReceiptCreateRequest;
+import com.fy.erp.dto.ReceiptCreateRequestDTO;
 import com.fy.erp.entities.Receivable;
 import com.fy.erp.entities.Receipt;
 import com.fy.erp.result.Result;
@@ -50,7 +50,7 @@ public class ReceivableController {
     }
 
     @PostMapping("/{id}/receipt")
-    public Result<Receipt> receive(@PathVariable Long id, @Valid @RequestBody ReceiptCreateRequest request) {
+    public Result<Receipt> receive(@PathVariable Long id, @Valid @RequestBody ReceiptCreateRequestDTO request) {
         return Result
                 .success(receivableService.receive(id, request.getAmount(), request.getMethod(), request.getRemark()));
     }

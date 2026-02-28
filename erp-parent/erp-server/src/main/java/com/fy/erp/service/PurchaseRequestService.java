@@ -1,10 +1,10 @@
 package com.fy.erp.service;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.fy.erp.dto.PurchaseOrderCreateRequest;
-import com.fy.erp.dto.PurchaseOrderItemRequest;
-import com.fy.erp.dto.PurchaseRequestCreateRequest;
-import com.fy.erp.dto.PurchaseRequestItemRequest;
+import com.fy.erp.dto.PurchaseOrderCreateRequestDTO;
+import com.fy.erp.dto.PurchaseOrderItemRequestDTO;
+import com.fy.erp.dto.PurchaseRequestCreateRequestDTO;
+import com.fy.erp.dto.PurchaseRequestItemRequestDTO;
 import com.fy.erp.entities.PurchaseRequest;
 import com.fy.erp.entities.PurchaseRequestItem;
 import com.fy.erp.exception.BizException;
@@ -28,7 +28,7 @@ public class PurchaseRequestService extends ServiceImpl<PurchaseRequestMapper, P
     }
 
     @Transactional
-    public PurchaseRequest createRequest(PurchaseRequestCreateRequest request) {
+    public PurchaseRequest createRequest(PurchaseRequestCreateRequestDTO request) {
         PurchaseRequest pr = new PurchaseRequest();
         pr.setRequestNo(OrderNoUtil.generate("PR"));
         pr.setSupplierId(request.getSupplierId());
@@ -38,7 +38,7 @@ public class PurchaseRequestService extends ServiceImpl<PurchaseRequestMapper, P
         save(pr);
 
         BigDecimal total = BigDecimal.ZERO;
-        for (PurchaseRequestItemRequest itemReq : request.getItems()) {
+        for (PurchaseRequestItemRequestDTO itemReq : request.getItems()) {
             BigDecimal amount = itemReq.getPrice().multiply(itemReq.getQuantity());
             total = total.add(amount);
 
@@ -100,16 +100,16 @@ public class PurchaseRequestService extends ServiceImpl<PurchaseRequestMapper, P
         if (items.isEmpty()) {
             throw new BizException(400, "request items empty");
         }
-        List<PurchaseOrderItemRequest> orderItems = new ArrayList<>();
+        List<PurchaseOrderItemRequestDTO> orderItems = new ArrayList<>();
         for (PurchaseRequestItem item : items) {
-            PurchaseOrderItemRequest o = new PurchaseOrderItemRequest();
+            PurchaseOrderItemRequestDTO o = new PurchaseOrderItemRequestDTO();
             o.setProductId(item.getProductId());
             o.setWarehouseId(item.getWarehouseId());
             o.setQuantity(item.getQuantity());
             o.setPrice(item.getPrice());
             orderItems.add(o);
         }
-        PurchaseOrderCreateRequest orderRequest = new PurchaseOrderCreateRequest();
+        PurchaseOrderCreateRequestDTO orderRequest = new PurchaseOrderCreateRequestDTO();
         orderRequest.setSupplierId(pr.getSupplierId());
         orderRequest.setRemark("由采购申请生成: " + pr.getRequestNo());
         orderRequest.setItems(orderItems);

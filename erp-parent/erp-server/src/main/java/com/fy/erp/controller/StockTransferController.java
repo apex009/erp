@@ -2,8 +2,7 @@ package com.fy.erp.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fy.erp.dto.StockTransferCreateRequest;
-import com.fy.erp.dto.StockTransferItemRequest;
+import com.fy.erp.dto.StockTransferCreateRequestDTO;
 import com.fy.erp.entities.StockTransfer;
 import com.fy.erp.entities.StockTransferItem;
 import com.fy.erp.result.Result;
@@ -27,9 +26,9 @@ public class StockTransferController {
 
     @GetMapping
     public Result<Page<StockTransfer>> page(@RequestParam(defaultValue = "1") long page,
-                                            @RequestParam(defaultValue = "10") long size,
-                                            @RequestParam(required = false) Long fromWarehouseId,
-                                            @RequestParam(required = false) Long toWarehouseId) {
+            @RequestParam(defaultValue = "10") long size,
+            @RequestParam(required = false) Long fromWarehouseId,
+            @RequestParam(required = false) Long toWarehouseId) {
         LambdaQueryWrapper<StockTransfer> wrapper = new LambdaQueryWrapper<>();
         if (fromWarehouseId != null) {
             wrapper.eq(StockTransfer::getFromWarehouseId, fromWarehouseId);
@@ -47,11 +46,12 @@ public class StockTransferController {
 
     @GetMapping("/{id}/items")
     public Result<List<StockTransferItem>> items(@PathVariable Long id) {
-        return Result.success(itemService.list(new LambdaQueryWrapper<StockTransferItem>().eq(StockTransferItem::getTransferId, id)));
+        return Result.success(
+                itemService.list(new LambdaQueryWrapper<StockTransferItem>().eq(StockTransferItem::getTransferId, id)));
     }
 
     @PostMapping
-    public Result<StockTransfer> create(@Valid @RequestBody StockTransferCreateRequest request) {
+    public Result<StockTransfer> create(@Valid @RequestBody StockTransferCreateRequestDTO request) {
         List<StockTransferItem> items = request.getItems().stream().map(itemReq -> {
             StockTransferItem item = new StockTransferItem();
             item.setProductId(itemReq.getProductId());
@@ -59,7 +59,7 @@ public class StockTransferController {
             return item;
         }).toList();
         return Result.success(
-                transferService.createTransfer(request.getFromWarehouseId(), request.getToWarehouseId(), request.getRemark(), items)
-        );
+                transferService.createTransfer(request.getFromWarehouseId(), request.getToWarehouseId(),
+                        request.getRemark(), items));
     }
 }
