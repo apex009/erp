@@ -127,7 +127,8 @@ const handleLogin = async () => {
       try {
         await authStore.login(loginForm)
         ElMessage.success('登录成功')
-        router.push('/')
+        const redirect = router.currentRoute.value.query.redirect || '/'
+        router.push(redirect)
       } catch (error) {
         console.error(error)
       } finally {
@@ -168,7 +169,8 @@ const handleSmsLogin = async () => {
       try {
         await authStore.loginBySms(smsForm)
         ElMessage.success('登录成功')
-        router.push('/')
+        const redirect = router.currentRoute.value.query.redirect || '/'
+        router.push(redirect)
       } catch (error) {
         console.error(error)
       } finally {

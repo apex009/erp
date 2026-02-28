@@ -8,9 +8,9 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.AntPathMatcher;
 
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Service
 @lombok.extern.slf4j.Slf4j
@@ -43,20 +43,26 @@ public class RbacService {
             return true;
         }
 
-        // 1. 尝试从缓存获取权限列表
+        // 1. 尝试从缓存获取权限列表（缓存的是精简 Map，不是 Entity）
         String cacheKey = com.fy.erp.constant.RedisKeyPrefix.AUTH_PERM + userId;
         @SuppressWarnings("unchecked")
-        List<SysPermission> perms = (List<SysPermission>) redisTemplate.opsForValue().get(cacheKey);
+        List<Map<String, String>> perms = (List<Map<String, String>>) redisTemplate.opsForValue().get(cacheKey);
 
         if (perms == null) {
             log.debug("[Redis] Cache MISS for user permissions: {}", userId);
-            // 2. 缓存失效，查询数据库
-            perms = getPermissionsFromDb(roleCodes);
-            // 3. 写入缓存
+            // 2. 缓存失效，查询数据库并转为精简 Map
+            List<SysPermission> dbPerms = getPermissionsFromDb(roleCodes);
+            perms = dbPerms.stream().map(p -> {
+                Map<String, String> m = new HashMap<>();
+                m.put("path", p.getPath());
+                m.put("method", p.getMethod());
+                return m;
+            }).collect(Collectors.toList());
+            // 3. 写入缓存（只缓存 path+method，无 LocalDateTime 问题）
             redisTemplate.opsForValue().set(cacheKey, perms,
                     com.fy.erp.constant.RedisKeyPrefix.AUTH_PERM_TTL.toSeconds(), TimeUnit.SECONDS);
 
-            // 4. 更新角色用户索引 (建立 roleId -> Set<userId> 的映射)
+            // 4. 更新角色用户索引
             indexUserRoles(userId, roleCodes);
         } else {
             log.debug("[Redis] Cache HIT for user permissions: {}", userId);
@@ -67,9 +73,9 @@ public class RbacService {
         }
 
         String requestMethod = method == null ? "" : method.toUpperCase();
-        for (SysPermission perm : perms) {
-            String permMethod = perm.getMethod();
-            String permPath = perm.getPath();
+        for (Map<String, String> perm : perms) {
+            String permMethod = perm.get("method");
+            String permPath = perm.get("path");
             if (permPath == null || permPath.isBlank()) {
                 continue;
             }

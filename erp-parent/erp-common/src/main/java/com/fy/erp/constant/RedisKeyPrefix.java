@@ -30,5 +30,5 @@ public interface RedisKeyPrefix {
   // 4. 报表看板缓存
   String REPORT_DASHBOARD = "report:dashboard:"; // report:dashboard:{scope}:{paramsHash}
 
-  Duration REPORT_TTL = Duration.ofMinutes(10);
+  Duration REPORT_TTL = Duration.ofMinutes(5);
 }

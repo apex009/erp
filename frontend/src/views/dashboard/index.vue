@@ -143,9 +143,9 @@
       </el-col>
     </el-row>
 
-    <!-- 第三行：销售漏斗 -->
+    <!-- 第三行：销售漏斗 + 成交排行榜 -->
     <el-row :gutter="16" style="margin-top: 16px;">
-      <el-col :span="24">
+      <el-col :span="14">
         <div class="panel" @click="goTo('/sales/leads')">
           <div class="panel-header">
             <span class="panel-title">销售漏斗</span>
@@ -153,6 +153,29 @@
           </div>
           <div class="panel-body">
             <DashboardFunnelChart :option="funnelChartOption" height="300px" :loading="loading" :isEmpty="funnelData.length === 0 && dataLoaded" />
+          </div>
+        </div>
+      </el-col>
+
+      <el-col :span="10">
+        <div class="panel rank-panel">
+          <div class="panel-header">
+            <span class="panel-title">🏆 今日成交排行</span>
+            <span class="rank-tip">每5分钟更新</span>
+          </div>
+          <div class="panel-body rank-body">
+            <div v-if="rankList.length === 0 && dataLoaded" class="rank-empty">暂无成交数据</div>
+            <div v-for="(item, idx) in rankList" :key="item.userId" class="rank-row" :class="{ 'rank-top3': idx < 3 }">
+              <div class="rank-index" :class="'rank-' + (idx + 1)">
+                <template v-if="idx < 3">
+                  {{ ['🥇','🥈','🥉'][idx] }}
+                </template>
+                <template v-else>{{ idx + 1 }}</template>
+              </div>
+              <div class="rank-name">{{ item.nickname }}</div>
+              <div class="rank-amount">{{ formatMoney(item.amount) }} 元</div>
+              <div class="rank-count">{{ item.orderCount }} 单</div>
+            </div>
           </div>
         </div>
       </el-col>
@@ -191,13 +214,14 @@ import { useRouter } from 'vue-router'
 import DashboardPieChart from '@/components/charts/DashboardPieChart.vue'
 import DashboardBarChart from '@/components/charts/DashboardBarChart.vue'
 import DashboardFunnelChart from '@/components/charts/DashboardFunnelChart.vue'
-import { getDashboardSummary, getLowStock, getFinanceReceivable, getFinancePayable, getSalesFunnel } from '@/api/report/index'
+import { getDashboardSummary, getLowStock, getFinanceReceivable, getFinancePayable, getSalesFunnel, getSalesRank } from '@/api/report/index'
 
 const router = useRouter()
 const loading = ref(true)
 const dataLoaded = ref(false)
 const lowStockCount = ref(0)
 const funnelData = ref([])
+const rankList = ref([])
 
 const data = reactive({
   todaySalesAmount: 0, todaySalesOrderCount: 0,
@@ -235,7 +259,7 @@ const goTo = (path, query = {}) => {
   router.push({ path, query })
 }
 
-// ====== Chart Options (computed, 数据驱动) ======
+// ====== Chart Options ======
 
 const targetChartOption = computed(() => {
   const target = data.salesTarget || 1
@@ -300,7 +324,7 @@ const funnelChartOption = computed(() => {
       left: '15%', top: 10, bottom: 10, width: '70%',
       min: 0, max: maxCount,
       minSize: '0%', maxSize: '100%',
-      sort: 'descending', gap: 2,
+      sort: 'none', gap: 2,
       label: {
         show: true, position: 'inside',
         formatter: (params) => {
@@ -309,12 +333,8 @@ const funnelChartOption = computed(() => {
         },
         color: '#fff', fontSize: 13
       },
-      itemStyle: {
-        borderColor: '#fff', borderWidth: 1
-      },
-      emphasis: {
-        label: { fontSize: 15 }
-      },
+      itemStyle: { borderColor: '#fff', borderWidth: 1 },
+      emphasis: { label: { fontSize: 15 } },
       data: funnelData.value.map((item, i) => ({
         value: item.count,
         name: item.stage,
@@ -322,8 +342,8 @@ const funnelChartOption = computed(() => {
           color: {
             type: 'linear', x: 0, y: 0, x2: 1, y2: 0,
             colorStops: [
-              { offset: 0, color: ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe'][i % 5] },
-              { offset: 1, color: ['#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe'][i % 5] }
+              { offset: 0, color: ['#667eea', '#764ba2', '#f093fb', '#f5576c'][i % 4] },
+              { offset: 1, color: ['#764ba2', '#f093fb', '#f5576c', '#4facfe'][i % 4] }
             ]
           }
         }
@@ -365,12 +385,13 @@ const payableChartOption = computed(() => ({
 const loadData = async () => {
   loading.value = true
   try {
-    const [summary, stocks, receivable, payable, funnel] = await Promise.allSettled([
+    const [summary, stocks, receivable, payable, funnel, rank] = await Promise.allSettled([
       getDashboardSummary(),
       getLowStock(),
       getFinanceReceivable(),
       getFinancePayable(),
-      getSalesFunnel()
+      getSalesFunnel(),
+      getSalesRank(10)
     ])
 
     if (summary.status === 'fulfilled' && summary.value) {
@@ -397,6 +418,10 @@ const loadData = async () => {
 
     if (funnel.status === 'fulfilled' && Array.isArray(funnel.value)) {
       funnelData.value = funnel.value.map(item => ({ stage: item.stage, count: item.count }))
+    }
+
+    if (rank.status === 'fulfilled' && Array.isArray(rank.value)) {
+      rankList.value = rank.value
     }
   } catch (e) {
     console.error('Dashboard load failed', e)
@@ -489,6 +514,32 @@ onMounted(() => {
   .inv-label { color: #909399; }
   .inv-value { font-weight: 500; }
 }
+
+/* 排行榜样式 */
+.rank-panel {
+  cursor: default;
+}
+.rank-tip { font-size: 11px; color: #C0C4CC; }
+.rank-body { padding: 8px 16px; max-height: 320px; overflow-y: auto; }
+.rank-empty { text-align: center; color: #C0C4CC; padding: 40px 0; font-size: 14px; }
+.rank-row {
+  display: flex;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #f5f5f5;
+  font-size: 13px;
+  &:last-child { border-bottom: none; }
+  &.rank-top3 { font-weight: 600; }
+}
+.rank-index {
+  width: 32px; text-align: center; font-size: 16px;
+  &.rank-1 { font-size: 20px; }
+  &.rank-2 { font-size: 18px; }
+  &.rank-3 { font-size: 16px; }
+}
+.rank-name { flex: 1; color: #303133; padding-left: 8px; }
+.rank-amount { color: #F56C6C; font-weight: 600; min-width: 100px; text-align: right; }
+.rank-count { color: #909399; min-width: 50px; text-align: right; margin-left: 8px; }
 
 .color-blue { color: #409EFF; }
 .color-green { color: #67C23A; }

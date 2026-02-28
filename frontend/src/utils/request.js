@@ -1,11 +1,11 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
-import { useAuthStore } from '@/stores/auth' // We will create this next
+import { useAuthStore } from '@/stores/auth'
 import router from '@/router'
 
 const service = axios.create({
-  baseURL: '/api', // Proxy will handle this
-  timeout: 5000
+  baseURL: '/api',
+  timeout: 15000
 })
 
 // Request interceptor
@@ -22,38 +22,61 @@ service.interceptors.request.use(
   }
 )
 
+// 防止 401 多次触发跳转
+let isRedirecting = false
+
 // Response interceptor
 service.interceptors.response.use(
   response => {
     const res = response.data
-    // Assuming backend returns { code: 200, data: ..., msg: ... }
     if (res.code !== 200) {
-      ElMessage({
-        message: res.msg || 'Error',
-        type: 'error',
-        duration: 5 * 1000
-      })
-
-      // 401: Illegal token; 50012: Other clients logged in; 50014: Token expired;
+      // 401: token 过期/无效
       if (res.code === 401) {
-        // to re-login
-        const authStore = useAuthStore()
-        authStore.resetToken().then(() => {
-          location.reload()
-        })
+        if (!isRedirecting) {
+          isRedirecting = true
+          const authStore = useAuthStore()
+          authStore.resetToken()
+          ElMessage.error('登录状态已过期，请重新登录')
+          router.replace('/login?redirect=' + router.currentRoute.value.fullPath)
+          setTimeout(() => { isRedirecting = false }, 2000)
+        }
+        return Promise.reject(new Error(res.msg || '未授权'))
       }
+
+      // 403: 无权限
+      if (res.code === 403) {
+        ElMessage.warning('您没有操作权限')
+        return Promise.reject(new Error('无权限'))
+      }
+
+      // 其他错误
+      ElMessage({
+        message: res.msg || '请求失败',
+        type: 'error',
+        duration: 3000
+      })
       return Promise.reject(new Error(res.msg || 'Error'))
     } else {
       return res.data
     }
   },
   error => {
-    console.log('err' + error) // for debug
-    ElMessage({
-      message: error.message,
-      type: 'error',
-      duration: 5 * 1000
-    })
+    // HTTP 层错误（网络断开、超时等）
+    const status = error.response?.status
+    if (status === 401) {
+      if (!isRedirecting) {
+        isRedirecting = true
+        const authStore = useAuthStore()
+        authStore.resetToken()
+        ElMessage.error('登录状态已过期，请重新登录')
+        router.replace('/login?redirect=' + router.currentRoute.value.fullPath)
+        setTimeout(() => { isRedirecting = false }, 2000)
+      }
+    } else if (status === 403) {
+      ElMessage.warning('您没有操作权限')
+    } else {
+      ElMessage.error(error.message || '网络异常')
+    }
     return Promise.reject(error)
   }
 )
