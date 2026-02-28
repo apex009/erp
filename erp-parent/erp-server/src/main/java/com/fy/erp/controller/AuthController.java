@@ -26,6 +26,7 @@ import java.util.Map;
 @RequestMapping("/api/auth")
 public class AuthController {
     private final SysUserService userService;
+    private final org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @Value("${jwt.secret}")
@@ -34,8 +35,10 @@ public class AuthController {
     @Value("${jwt.expire-millis}")
     private long expireMillis;
 
-    public AuthController(SysUserService userService) {
+    public AuthController(SysUserService userService,
+            org.springframework.data.redis.core.StringRedisTemplate redisTemplate) {
         this.userService = userService;
+        this.redisTemplate = redisTemplate;
     }
 
     @PostMapping("/login")
@@ -47,6 +50,35 @@ public class AuthController {
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new BizException(401, "invalid username or password");
         }
+        return getLoginResponse(user);
+    }
+
+    @PostMapping("/login/sms")
+    public Result<LoginResponse> loginBySms(@Valid @RequestBody com.fy.erp.dto.SmsLoginRequest request) {
+        String phone = request.getPhone();
+        String code = request.getCode();
+
+        // 验证验证码
+        String key = com.fy.erp.constant.RedisKeyPrefix.SMS_CODE + phone;
+        String cachedCode = redisTemplate.opsForValue().get(key);
+
+        if (cachedCode == null || !cachedCode.equals(code)) {
+            throw new BizException(400, "验证码错误或已过期");
+        }
+
+        // 验证通过，查找用户
+        SysUser user = userService.findByPhone(phone);
+        if (user == null || user.getStatus() != null && user.getStatus() == 0) {
+            throw new BizException(404, "手机号未注册或账号已禁用");
+        }
+
+        // 登录成功，清除验证码
+        redisTemplate.delete(key);
+
+        return getLoginResponse(user);
+    }
+
+    private Result<LoginResponse> getLoginResponse(SysUser user) {
         List<String> roles = userService.getRoleCodes(user.getId());
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", user.getId());

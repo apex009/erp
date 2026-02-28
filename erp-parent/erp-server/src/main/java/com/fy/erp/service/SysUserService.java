@@ -29,10 +29,13 @@ public class SysUserService extends ServiceImpl<SysUserMapper, SysUser> {
         return getOne(new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, username));
     }
 
+    public SysUser findByPhone(String phone) {
+        return getOne(new LambdaQueryWrapper<SysUser>().eq(SysUser::getPhone, phone));
+    }
+
     public List<String> getRoleCodes(Long userId) {
         List<SysUserRole> userRoles = userRoleMapper.selectList(
-                new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, userId)
-        );
+                new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, userId));
         if (userRoles.isEmpty()) {
             return List.of();
         }

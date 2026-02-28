@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { login, logout, getInfo } from '@/api/auth'
+import { login, logout, getInfo, loginBySms } from '@/api/auth'
 import { ElMessage } from 'element-plus'
 
 export const useAuthStore = defineStore('auth', {
@@ -14,16 +14,30 @@ export const useAuthStore = defineStore('auth', {
       const { username, password } = userInfo
       try {
         const data = await login({ username: username.trim(), password: password })
-        console.log('Login response data:', data)
-        const tokenHead = data.tokenType || 'Bearer'
-        const tokenStr = data.token
-        this.token = `${tokenHead} ${tokenStr}`
-
-        localStorage.setItem('token', this.token)
-        return true
+        return this.handleLoginSuccess(data)
       } catch (error) {
         return Promise.reject(error)
       }
+    },
+
+    // SMS Login
+    async loginBySms(userInfo) {
+      try {
+        const data = await loginBySms(userInfo)
+        return this.handleLoginSuccess(data)
+      } catch (error) {
+        return Promise.reject(error)
+      }
+    },
+
+    handleLoginSuccess(data) {
+      console.log('Login response data:', data)
+      const tokenHead = data.tokenType || 'Bearer'
+      const tokenStr = data.token
+      this.token = `${tokenHead} ${tokenStr}`
+
+      localStorage.setItem('token', this.token)
+      return true
     },
 
     // Get user info

@@ -21,3 +21,21 @@ export function logout() {
     method: 'post'
   })
 }
+
+// 发送短信验证码
+export function sendSmsCode(phone) {
+  return request({
+    url: '/auth/sms/code',
+    method: 'post',
+    params: { phone }
+  })
+}
+
+// 短信登录
+export function loginBySms(data) {
+  return request({
+    url: '/auth/login/sms',
+    method: 'post',
+    data
+  })
+}

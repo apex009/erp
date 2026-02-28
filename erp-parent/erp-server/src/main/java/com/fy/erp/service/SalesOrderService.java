@@ -12,6 +12,7 @@ import com.fy.erp.enums.StockRecordType;
 import com.fy.erp.exception.BizException;
 import com.fy.erp.mapper.SalesOrderMapper;
 import com.fy.erp.util.OrderNoUtil;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +39,7 @@ public class SalesOrderService extends ServiceImpl<SalesOrderMapper, SalesOrder>
     }
 
     @Transactional
+    @CacheEvict(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, allEntries = true)
     public SalesOrder createOrder(SalesOrderCreateRequest request) {
         SalesOrder order = new SalesOrder();
         order.setOrderNo(OrderNoUtil.generate("SO"));
@@ -68,6 +70,7 @@ public class SalesOrderService extends ServiceImpl<SalesOrderMapper, SalesOrder>
     }
 
     @Transactional
+    @CacheEvict(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, allEntries = true)
     public SalesOrder approve(Long id) {
         SalesOrder order = getById(id);
         if (order == null) {
@@ -82,20 +85,17 @@ public class SalesOrderService extends ServiceImpl<SalesOrderMapper, SalesOrder>
     }
 
     @Transactional
+    @CacheEvict(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, allEntries = true)
     public SalesOrder outbound(Long id) {
         SalesOrder order = getById(id);
         if (order == null) {
             throw new BizException(404, "order not found");
         }
-        // Only allow outbound if status is 1 (Approved/Wait Outbound)
         if (order.getStatus() != 1) {
             throw new BizException(400, "Order status is not valid for outbound");
         }
-
-        // Logic moved from createOrder: Reduce Stock & Create Records
         for (SalesItem item : itemService.lambdaQuery().eq(SalesItem::getOrderId, id).list()) {
             stockService.reduceStock(item.getProductId(), item.getWarehouseId(), item.getQuantity());
-
             StockRecord record = new StockRecord();
             record.setProductId(item.getProductId());
             record.setWarehouseId(item.getWarehouseId());
@@ -106,8 +106,6 @@ public class SalesOrderService extends ServiceImpl<SalesOrderMapper, SalesOrder>
             record.setRemark("销售出库");
             stockRecordService.save(record);
         }
-
-        // Create Receivable
         Receivable receivable = new Receivable();
         receivable.setCustomerId(order.getCustomerId());
         receivable.setOrderId(order.getId());
@@ -115,15 +113,13 @@ public class SalesOrderService extends ServiceImpl<SalesOrderMapper, SalesOrder>
         receivable.setPaidAmount(BigDecimal.ZERO);
         receivable.setStatus(0);
         receivableService.save(receivable);
-
-        // Update Status to 3 (Completed)
         order.setStatus(3);
         updateById(order);
-
         return order;
     }
 
     @Transactional
+    @CacheEvict(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, allEntries = true)
     public SalesOrder cancel(Long id) {
         SalesOrder order = getById(id);
         if (order == null) {
@@ -159,6 +155,7 @@ public class SalesOrderService extends ServiceImpl<SalesOrderMapper, SalesOrder>
     }
 
     @Transactional
+    @CacheEvict(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, allEntries = true)
     public SalesOrder refund(Long id) {
         SalesOrder order = getById(id);
         if (order == null) {
@@ -184,10 +181,10 @@ public class SalesOrderService extends ServiceImpl<SalesOrderMapper, SalesOrder>
             record.setRemark("销售退货入库");
             stockRecordService.save(record);
         }
-        order.setStatus(3); // This might need to be a new status like 'Refunded' (e.g., 4)
+        order.setStatus(3);
         updateById(order);
         if (receivable != null) {
-            receivable.setStatus(3); // This might need to be a new status like 'Refunded' (e.g., 4)
+            receivable.setStatus(3);
             receivableService.updateById(receivable);
         }
         return order;

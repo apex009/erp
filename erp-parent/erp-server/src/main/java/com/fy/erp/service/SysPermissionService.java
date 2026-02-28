@@ -11,6 +11,7 @@ public class SysPermissionService extends ServiceImpl<SysPermissionMapper, SysPe
   @org.springframework.beans.factory.annotation.Autowired
   private org.springframework.context.ApplicationContext applicationContext;
 
+  @org.springframework.cache.annotation.CacheEvict(value = com.fy.erp.constant.RedisKeyPrefix.AUTH_PERM, allEntries = true)
   public void syncPermissions() {
     org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping mapping = applicationContext
         .getBean(org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping.class);

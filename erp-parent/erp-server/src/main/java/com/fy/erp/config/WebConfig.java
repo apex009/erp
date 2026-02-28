@@ -20,11 +20,12 @@ public class WebConfig implements WebMvcConfigurer {
                 .addPathPatterns("/api/**")
                 .excludePathPatterns(
                         "/api/auth/login",
+                        "/api/auth/login/sms",
+                        "/api/auth/sms/code",
                         "/api/auth/logout",
                         "/v3/api-docs/**",
                         "/swagger-ui/**",
-                        "/swagger-ui.html"
-                );
+                        "/swagger-ui.html");
     }
 
     @Override

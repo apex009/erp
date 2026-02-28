@@ -13,32 +13,63 @@
           <h2>欢迎回来</h2>
           <p class="welcome-text">请登录您的账户</p>
           
-          <el-form ref="loginFormRef" :model="loginForm" :rules="loginRules" label-position="top" size="large">
-            <el-form-item label="用户名" prop="username">
-              <el-input v-model="loginForm.username" placeholder="请输入用户名" prefix-icon="User" />
-            </el-form-item>
-            <el-form-item label="密码" prop="password">
-              <el-input 
-                v-model="loginForm.password" 
-                type="password" 
-                placeholder="请输入密码" 
-                prefix-icon="Lock" 
-                show-password 
-                @keyup.enter="handleLogin"
-              />
-            </el-form-item>
-            
-            <div class="form-options">
-               <el-checkbox v-model="rememberMe">记住我</el-checkbox>
-               <a href="#" class="forgot-password">忘记密码?</a>
-            </div>
+          <el-tabs v-model="loginType" class="login-tabs">
+            <el-tab-pane label="账号登录" name="account">
+              <el-form ref="loginFormRef" :model="loginForm" :rules="loginRules" label-position="top" size="large">
+                <el-form-item label="用户名" prop="username">
+                  <el-input v-model="loginForm.username" placeholder="请输入用户名" prefix-icon="User" />
+                </el-form-item>
+                <el-form-item label="密码" prop="password">
+                  <el-input 
+                    v-model="loginForm.password" 
+                    type="password" 
+                    placeholder="请输入密码" 
+                    prefix-icon="Lock" 
+                    show-password 
+                    @keyup.enter="handleLogin"
+                  />
+                </el-form-item>
+                
+                <div class="form-options">
+                   <el-checkbox v-model="rememberMe">记住我</el-checkbox>
+                   <a href="#" class="forgot-password">忘记密码?</a>
+                </div>
 
-            <el-form-item>
-              <el-button type="primary" :loading="loading" class="login-button" @click="handleLogin">
-                登 录
-              </el-button>
-            </el-form-item>
-          </el-form>
+                <el-form-item>
+                  <el-button type="primary" :loading="loading" class="login-button" @click="handleLogin">
+                    登 录
+                  </el-button>
+                </el-form-item>
+              </el-form>
+            </el-tab-pane>
+
+            <el-tab-pane label="手机登录" name="sms">
+              <el-form ref="smsFormRef" :model="smsForm" :rules="smsRules" label-position="top" size="large">
+                <el-form-item label="手机号" prop="phone">
+                  <el-input v-model="smsForm.phone" placeholder="请输入手机号" prefix-icon="Iphone" />
+                </el-form-item>
+                <el-form-item label="验证码" prop="code">
+                  <div class="code-input-wrapper">
+                    <el-input v-model="smsForm.code" placeholder="验证码" prefix-icon="ChatLineRound" />
+                    <el-button 
+                      native-type="button"
+                      :disabled="countdown > 0" 
+                      class="code-button" 
+                      @click.prevent="handleSendCode"
+                    >
+                      {{ countdown > 0 ? `${countdown}s后重发` : '获取验证码' }}
+                    </el-button>
+                  </div>
+                </el-form-item>
+
+                <el-form-item>
+                  <el-button type="primary" :loading="loading" class="login-button" @click="handleSmsLogin">
+                    登 录
+                  </el-button>
+                </el-form-item>
+              </el-form>
+            </el-tab-pane>
+          </el-tabs>
         </div>
       </div>
     </div>
@@ -46,27 +77,45 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { sendSmsCode } from '@/api/auth'
 import { ElMessage } from 'element-plus'
-import { User, Lock } from '@element-plus/icons-vue'
+import { User, Lock, Iphone, ChatLineRound } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
+const loginType = ref('account')
 const loginFormRef = ref(null)
+const smsFormRef = ref(null)
 const loading = ref(false)
 const rememberMe = ref(false)
+const countdown = ref(0)
+let timer = null
 
 const loginForm = reactive({
   username: '',
   password: ''
 })
 
+const smsForm = reactive({
+  phone: '',
+  code: ''
+})
+
 const loginRules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
+}
+
+const smsRules = {
+  phone: [
+    { required: true, message: '请输入手机号', trigger: 'blur' },
+    { pattern: /^1[3-9]\d{9}$/, message: '手机号格式不正确', trigger: 'blur' }
+  ],
+  code: [{ required: true, message: '请输入验证码', trigger: 'blur' }]
 }
 
 const handleLogin = async () => {
@@ -87,6 +136,51 @@ const handleLogin = async () => {
     }
   })
 }
+
+const handleSendCode = async () => {
+  if (!/^1[3-9]\d{9}$/.test(smsForm.phone)) {
+    ElMessage.warning('请先输入有效的手机号')
+    return
+  }
+
+  try {
+    await sendSmsCode(smsForm.phone)
+    ElMessage.success('验证码已发送')
+    countdown.value = 60
+    timer = setInterval(() => {
+      if (countdown.value > 0) {
+        countdown.value--
+      } else {
+        clearInterval(timer)
+      }
+    }, 1000)
+  } catch (error) {
+    console.error(error)
+  }
+}
+
+const handleSmsLogin = async () => {
+  if (!smsFormRef.value) return
+  
+  await smsFormRef.value.validate(async (valid) => {
+    if (valid) {
+      loading.value = true
+      try {
+        await authStore.loginBySms(smsForm)
+        ElMessage.success('登录成功')
+        router.push('/')
+      } catch (error) {
+        console.error(error)
+      } finally {
+        loading.value = false
+      }
+    }
+  })
+}
+
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
+})
 </script>
 
 <style scoped lang="scss">
@@ -187,6 +281,24 @@ const handleLogin = async () => {
                 text-decoration: underline;
             }
         }
+    }
+
+    .login-tabs {
+      margin-top: 20px;
+      :deep(.el-tabs__nav-wrap::after) {
+        height: 1px;
+      }
+    }
+
+    .code-input-wrapper {
+      display: flex;
+      gap: 10px;
+      .el-input {
+        flex: 1;
+      }
+      .code-button {
+        width: 120px;
+      }
     }
 
     .login-button {

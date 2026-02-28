@@ -1,0 +1,37 @@
+spring:
+  application:
+    name: erp-server
+  datasource:
+    url: jdbc:mysql://localhost:3306/erp_light?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: 123456
+      timeout: 5000
+      database: 1
+
+server:
+  port: 9090
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+jwt:
+  secret: erp-secret-key-change-me-32-bytes-minimum
+  expire-millis: 86400000
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html

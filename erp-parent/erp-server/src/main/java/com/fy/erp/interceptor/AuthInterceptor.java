@@ -53,14 +53,15 @@ public class AuthInterceptor implements HandlerInterceptor {
         UserContext.set(new UserPrincipal(userId, username, nickname, roles));
         String requestPath = request.getRequestURI();
         String requestMethod = request.getMethod();
-        if (!rbacService.hasPermission(roles, requestMethod, requestPath)) {
+        if (!rbacService.hasPermission(userId, roles, requestMethod, requestPath)) {
             throw new BizException(403, "forbidden");
         }
         return true;
     }
 
     @Override
-    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler,
+            Exception ex) {
         UserContext.clear();
     }
 }

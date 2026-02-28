@@ -12,6 +12,7 @@ import com.fy.erp.enums.StockRecordType;
 import com.fy.erp.exception.BizException;
 import com.fy.erp.mapper.PurchaseOrderMapper;
 import com.fy.erp.util.OrderNoUtil;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -152,6 +153,7 @@ public class PurchaseOrderService extends ServiceImpl<PurchaseOrderMapper, Purch
     }
 
     @Transactional
+    @CacheEvict(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, allEntries = true)
     public PurchaseOrder inbound(Long id) {
         PurchaseOrder order = getById(id);
         if (order == null) {
