@@ -5,19 +5,20 @@ import java.math.BigDecimal;
 
 @Data
 public class DashboardSummary {
-  // 今日销售
-  private BigDecimal todaySalesAmount;
-  private Integer todaySalesOrderCount;
-  private BigDecimal todaySalesOutAmount;
-  private Integer todaySalesOutCount;
-  private BigDecimal todaySalesReturnAmount;
-  private Integer todaySalesReturnCount;
-  private BigDecimal todaySalesProfit;
+  // 今日成交（出库口径：status=3 已出库，以 update_time 为出库完成时间）
+  private BigDecimal todaySalesAmount; // 今日成交总额
+  private Integer todaySalesOrderCount; // 今日成交订单数
+  private BigDecimal todaySalesOutAmount; // 今日出库金额（与成交同口径）
+  private Integer todaySalesOutCount; // 今日出库单数
+  private BigDecimal todaySalesReturnAmount; // 今日退货金额（status=2）
+  private Integer todaySalesReturnCount; // 今日退货单数
+  private BigDecimal todaySalesProfit; // 今日毛利（出库口径）
 
-  // 销售目标与增长
-  private BigDecimal salesTarget;
-  private BigDecimal yoyGrowth; // 同比增长率
-  private BigDecimal momGrowth; // 环比增长率
+  // 销售目标与增长（出库口径）
+  private BigDecimal salesTarget; // 目标金额（来自 application.yaml 配置）
+  private BigDecimal achieveRate; // 达成率 = todaySalesAmount / salesTarget * 100
+  private BigDecimal yoyGrowth; // 同比增长率（去年同日出库额对比）
+  private BigDecimal momGrowth; // 环比增长率（昨日出库额对比）
 
   // 采购情况
   private BigDecimal todayPurchaseAmount;

@@ -32,6 +32,10 @@ public class RbacService {
     }
 
     public boolean hasPermission(Long userId, List<String> roleCodes, String method, String path) {
+        // 用户自身信息和菜单接口，所有已登录用户可访问
+        if (path != null && path.startsWith("/api/auth/")) {
+            return true;
+        }
         if (roleCodes == null || roleCodes.isEmpty()) {
             return false;
         }

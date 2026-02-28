@@ -39,3 +39,11 @@ export function loginBySms(data) {
     data
   })
 }
+
+// 获取当前用户菜单权限
+export function getMenus() {
+  return request({
+    url: '/auth/menus',
+    method: 'get'
+  })
+}

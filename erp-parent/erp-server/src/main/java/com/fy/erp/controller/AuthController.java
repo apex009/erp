@@ -27,6 +27,9 @@ import java.util.Map;
 public class AuthController {
     private final SysUserService userService;
     private final org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
+    private final com.fy.erp.service.SysPermissionService sysPermissionService;
+    private final com.fy.erp.service.SysRoleService sysRoleService;
+    private final com.fy.erp.service.SysRolePermissionService sysRolePermissionService;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @Value("${jwt.secret}")
@@ -36,9 +39,15 @@ public class AuthController {
     private long expireMillis;
 
     public AuthController(SysUserService userService,
-            org.springframework.data.redis.core.StringRedisTemplate redisTemplate) {
+            org.springframework.data.redis.core.StringRedisTemplate redisTemplate,
+            com.fy.erp.service.SysPermissionService sysPermissionService,
+            com.fy.erp.service.SysRoleService sysRoleService,
+            com.fy.erp.service.SysRolePermissionService sysRolePermissionService) {
         this.userService = userService;
         this.redisTemplate = redisTemplate;
+        this.sysPermissionService = sysPermissionService;
+        this.sysRoleService = sysRoleService;
+        this.sysRolePermissionService = sysRolePermissionService;
     }
 
     @PostMapping("/login")
@@ -98,5 +107,67 @@ public class AuthController {
     @GetMapping("/me")
     public Result<UserPrincipal> me() {
         return Result.success(UserContext.get());
+    }
+
+    /**
+     * 获取当前用户的菜单权限列表（RBAC 动态菜单）
+     */
+    @GetMapping("/menus")
+    public Result<java.util.Map<String, Object>> getMenus() {
+        UserPrincipal user = UserContext.get();
+        List<String> roles = user.getRoles();
+
+        List<java.util.Map<String, String>> menus = new java.util.ArrayList<>();
+        List<String> permCodes = new java.util.ArrayList<>();
+
+        if (roles.contains("ADMIN")) {
+            // 超级管理员：返回所有菜单
+            List<com.fy.erp.entities.SysPermission> allPerms = sysPermissionService.list(
+                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.fy.erp.entities.SysPermission>()
+                            .eq(com.fy.erp.entities.SysPermission::getStatus, 1));
+            for (com.fy.erp.entities.SysPermission p : allPerms) {
+                if ("MENU".equals(p.getType())) {
+                    java.util.Map<String, String> m = new java.util.HashMap<>();
+                    m.put("permCode", p.getPermCode());
+                    m.put("permName", p.getPermName());
+                    m.put("path", p.getPath());
+                    menus.add(m);
+                }
+                permCodes.add(p.getPermCode());
+            }
+        } else {
+            // 非管理员：根据角色权限过滤
+            List<com.fy.erp.entities.SysRole> roleEntities = sysRoleService.list(
+                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.fy.erp.entities.SysRole>()
+                            .in(com.fy.erp.entities.SysRole::getRoleCode, roles));
+            List<Long> roleIds = roleEntities.stream().map(com.fy.erp.entities.SysRole::getId).toList();
+            if (!roleIds.isEmpty()) {
+                List<com.fy.erp.entities.SysRolePermission> rolePerms = sysRolePermissionService.list(
+                        new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.fy.erp.entities.SysRolePermission>()
+                                .in(com.fy.erp.entities.SysRolePermission::getRoleId, roleIds));
+                List<Long> permIds = rolePerms.stream().map(com.fy.erp.entities.SysRolePermission::getPermId).toList();
+                if (!permIds.isEmpty()) {
+                    List<com.fy.erp.entities.SysPermission> perms = sysPermissionService.list(
+                            new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.fy.erp.entities.SysPermission>()
+                                    .in(com.fy.erp.entities.SysPermission::getId, permIds)
+                                    .eq(com.fy.erp.entities.SysPermission::getStatus, 1));
+                    for (com.fy.erp.entities.SysPermission p : perms) {
+                        if ("MENU".equals(p.getType())) {
+                            java.util.Map<String, String> m = new java.util.HashMap<>();
+                            m.put("permCode", p.getPermCode());
+                            m.put("permName", p.getPermName());
+                            m.put("path", p.getPath());
+                            menus.add(m);
+                        }
+                        permCodes.add(p.getPermCode());
+                    }
+                }
+            }
+        }
+
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        result.put("menus", menus);
+        result.put("permissions", permCodes);
+        return Result.success(result);
     }
 }

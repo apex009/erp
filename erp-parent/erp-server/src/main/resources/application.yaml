@@ -35,3 +35,8 @@ springdoc:
     path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
+
+# 业务配置
+erp:
+  dashboard:
+    sales-target: 100000

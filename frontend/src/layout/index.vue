@@ -3,7 +3,6 @@
     <el-container>
       <el-aside width="240px" class="aside-menu">
         <div class="logo-container">
-          <!-- <img src="@/assets/logo.svg" alt="Logo" /> -->
           <span>ERP 管理系统</span>
         </div>
         <el-menu
@@ -14,61 +13,74 @@
           text-color="#a6adb4"
           router
         >
-          <el-menu-item index="/dashboard">
+          <!-- 经营看板 (所有角色都可见) -->
+          <el-menu-item v-if="showMenu('/dashboard')" index="/dashboard">
             <el-icon><Odometer /></el-icon>
-            <span>仪表盘</span>
+            <span>经营看板</span>
           </el-menu-item>
-          <el-sub-menu index="base">
+
+          <!-- 基础数据 -->
+          <el-sub-menu v-if="showGroup('base')" index="base">
             <template #title>
               <el-icon><Files /></el-icon>
               <span>基础数据</span>
             </template>
-            <el-menu-item index="/base/products">商品管理</el-menu-item>
-            <el-menu-item index="/base/suppliers">供应商管理</el-menu-item>
-            <el-menu-item index="/base/customers">客户管理</el-menu-item>
-            <el-menu-item index="/base/warehouses">仓库管理</el-menu-item>
+            <el-menu-item v-if="showMenu('/base/products')" index="/base/products">商品管理</el-menu-item>
+            <el-menu-item v-if="showMenu('/base/suppliers')" index="/base/suppliers">供应商管理</el-menu-item>
+            <el-menu-item v-if="showMenu('/base/customers')" index="/base/customers">客户管理</el-menu-item>
+            <el-menu-item v-if="showMenu('/base/warehouses')" index="/base/warehouses">仓库管理</el-menu-item>
           </el-sub-menu>
-          <el-sub-menu index="purchase">
+
+          <!-- 采购管理 -->
+          <el-sub-menu v-if="showGroup('purchase')" index="purchase">
             <template #title>
               <el-icon><ShoppingCart /></el-icon>
               <span>采购管理</span>
             </template>
-            <el-menu-item index="/purchase/requests">采购申请</el-menu-item>
-            <el-menu-item index="/purchase/orders">采购订单</el-menu-item>
+            <el-menu-item v-if="showMenu('/purchase/requests')" index="/purchase/requests">采购申请</el-menu-item>
+            <el-menu-item v-if="showMenu('/purchase/orders')" index="/purchase/orders">采购订单</el-menu-item>
           </el-sub-menu>
-          <el-sub-menu index="sales">
+
+          <!-- 销售管理 -->
+          <el-sub-menu v-if="showGroup('sales')" index="sales">
             <template #title>
               <el-icon><ShoppingBag /></el-icon>
               <span>销售管理</span>
             </template>
-            <el-menu-item index="/sales/leads">商机/线索</el-menu-item>
-            <el-menu-item index="/sales/orders">销售订单</el-menu-item>
+            <el-menu-item v-if="showMenu('/sales/leads')" index="/sales/leads">商机/线索</el-menu-item>
+            <el-menu-item v-if="showMenu('/sales/orders')" index="/sales/orders">销售订单</el-menu-item>
           </el-sub-menu>
-          <el-sub-menu index="inventory">
+
+          <!-- 库存管理 -->
+          <el-sub-menu v-if="showGroup('inventory')" index="inventory">
             <template #title>
               <el-icon><Box /></el-icon>
               <span>库存管理</span>
             </template>
-            <el-menu-item index="/inventory/stocks">库存查询</el-menu-item>
-            <el-menu-item index="/inventory/records">库存流水</el-menu-item>
+            <el-menu-item v-if="showMenu('/inventory/stocks')" index="/inventory/stocks">库存查询</el-menu-item>
+            <el-menu-item v-if="showMenu('/inventory/records')" index="/inventory/records">库存流水</el-menu-item>
           </el-sub-menu>
-          <el-sub-menu index="finance">
+
+          <!-- 财务管理 -->
+          <el-sub-menu v-if="showGroup('finance')" index="finance">
             <template #title>
               <el-icon><Wallet /></el-icon>
               <span>财务管理</span>
             </template>
-            <el-menu-item index="/finance/receivables">应收管理</el-menu-item>
-            <el-menu-item index="/finance/payables">应付管理</el-menu-item>
+            <el-menu-item v-if="showMenu('/finance/receivables')" index="/finance/receivables">应收管理</el-menu-item>
+            <el-menu-item v-if="showMenu('/finance/payables')" index="/finance/payables">应付管理</el-menu-item>
           </el-sub-menu>
-          <el-sub-menu index="system">
+
+          <!-- 系统管理 -->
+          <el-sub-menu v-if="showGroup('system')" index="system">
             <template #title>
               <el-icon><Setting /></el-icon>
               <span>系统管理</span>
             </template>
-            <el-menu-item index="/system/users">用户管理</el-menu-item>
-            <el-menu-item index="/system/roles">角色管理</el-menu-item>
-            <el-menu-item index="/system/depts">部门管理</el-menu-item>
-            <el-menu-item index="/system/permissions">权限管理</el-menu-item>
+            <el-menu-item v-if="showMenu('/system/users')" index="/system/users">用户管理</el-menu-item>
+            <el-menu-item v-if="showMenu('/system/roles')" index="/system/roles">角色管理</el-menu-item>
+            <el-menu-item v-if="showMenu('/system/depts')" index="/system/depts">部门管理</el-menu-item>
+            <el-menu-item v-if="showMenu('/system/permissions')" index="/system/permissions">权限管理</el-menu-item>
           </el-sub-menu>
         </el-menu>
       </el-aside>
@@ -81,6 +93,7 @@
             </el-breadcrumb>
           </div>
           <div class="header-right">
+            <el-tag v-if="currentRoleLabel" :type="currentRoleType" size="small" class="role-tag">{{ currentRoleLabel }}</el-tag>
             <el-dropdown>
               <span class="el-dropdown-link">
                 <el-avatar :size="32" class="user-avatar">{{ authStore.name ? authStore.name.charAt(0).toUpperCase() : 'U' }}</el-avatar>
@@ -110,6 +123,7 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { Odometer, Setting, ArrowDown, Files, ShoppingCart, ShoppingBag, Box, Wallet } from '@element-plus/icons-vue'
@@ -117,8 +131,39 @@ import { Odometer, Setting, ArrowDown, Files, ShoppingCart, ShoppingBag, Box, Wa
 const router = useRouter()
 const authStore = useAuthStore()
 
-// Load user info on mount if not exists (optional, but good practice)
-// authStore.getInfo() 
+/**
+ * 判断是否显示某个菜单项（基于 RBAC 权限）
+ * ADMIN 角色看到所有菜单
+ */
+const showMenu = (path) => {
+  if (authStore.roles.includes('ADMIN')) return true
+  return authStore.menus.some(m => m.path === path)
+}
+
+/**
+ * 判断子菜单组是否有可见项
+ */
+const showGroup = (prefix) => {
+  if (authStore.roles.includes('ADMIN')) return true
+  return authStore.menus.some(m => m.path && m.path.startsWith('/' + prefix + '/'))
+}
+
+/**
+ * 当前角色标签
+ */
+const currentRoleLabel = computed(() => {
+  if (authStore.roles.includes('ADMIN')) return '超级管理员'
+  if (authStore.roles.includes('SALES')) return '销售'
+  if (authStore.roles.includes('FIN')) return '财务'
+  return ''
+})
+
+const currentRoleType = computed(() => {
+  if (authStore.roles.includes('ADMIN')) return 'danger'
+  if (authStore.roles.includes('SALES')) return 'success'
+  if (authStore.roles.includes('FIN')) return 'warning'
+  return 'info'
+})
 
 const handleLogout = async () => {
     await authStore.logout()
@@ -176,20 +221,28 @@ const handleLogout = async () => {
   z-index: 9;
   
   .header-right {
-      .el-dropdown-link {
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        
-        .user-avatar {
-            margin-right: 8px;
-            background: #667eea;
-        }
-        
-        .username {
-            font-weight: 500;
-        }
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .role-tag {
+      font-weight: 500;
+    }
+
+    .el-dropdown-link {
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      
+      .user-avatar {
+          margin-right: 8px;
+          background: #667eea;
       }
+      
+      .username {
+          font-weight: 500;
+      }
+    }
   }
 }
 
@@ -214,5 +267,3 @@ const handleLogout = async () => {
   transform: translateX(30px);
 }
 </style>
-
-

@@ -1,5 +1,6 @@
 package com.fy.erp.service;
 
+import com.fy.erp.dto.report.DashboardSummary;
 import com.fy.erp.dto.report.FinanceSummary;
 import com.fy.erp.dto.report.LowStockItem;
 import com.fy.erp.dto.report.SalesAmountByDay;
@@ -7,13 +8,19 @@ import com.fy.erp.dto.report.SalesByCustomer;
 import com.fy.erp.dto.report.SalesByProduct;
 import com.fy.erp.dto.report.SalesFunnelItem;
 import com.fy.erp.mapper.ReportMapper;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 
 @Service
 public class ReportService {
     private final ReportMapper reportMapper;
+
+    @Value("${erp.dashboard.sales-target:100000}")
+    private BigDecimal salesTarget;
 
     public ReportService(ReportMapper reportMapper) {
         this.reportMapper = reportMapper;
@@ -21,16 +28,23 @@ public class ReportService {
 
     @org.springframework.cache.annotation.Cacheable(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, key = "'sales:day:' + #start + ':' + #end")
     public List<SalesAmountByDay> salesAmountByDay(String start, String end) {
+        // D: 日期补齐，保证包含 end 当天全部数据
+        start = normalizeStartDate(start);
+        end = normalizeEndDate(end);
         return reportMapper.salesAmountByDay(start, end);
     }
 
     @org.springframework.cache.annotation.Cacheable(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, key = "'sales:customer:' + #start + ':' + #end")
     public List<SalesByCustomer> salesByCustomer(String start, String end) {
+        start = normalizeStartDate(start);
+        end = normalizeEndDate(end);
         return reportMapper.salesByCustomer(start, end);
     }
 
     @org.springframework.cache.annotation.Cacheable(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, key = "'sales:product:' + #start + ':' + #end")
     public List<SalesByProduct> salesByProduct(String start, String end) {
+        start = normalizeStartDate(start);
+        end = normalizeEndDate(end);
         return reportMapper.salesByProduct(start, end);
     }
 
@@ -55,10 +69,10 @@ public class ReportService {
     }
 
     @org.springframework.cache.annotation.Cacheable(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, key = "'dashboard:summary'")
-    public com.fy.erp.dto.report.DashboardSummary dashboardSummary() {
-        com.fy.erp.dto.report.DashboardSummary summary = new com.fy.erp.dto.report.DashboardSummary();
+    public DashboardSummary dashboardSummary() {
+        DashboardSummary summary = new DashboardSummary();
 
-        // 今日销售
+        // 今日成交（出库口径：status=3, update_time）
         var sales = reportMapper.todaySalesSummary();
         if (sales != null) {
             summary.setTodaySalesAmount(sales.getTodaySalesAmount());
@@ -105,7 +119,7 @@ public class ReportService {
             summary.setTodayPayableAmount(payable.getTodayPayableAmount());
         }
 
-        // 销售退货
+        // 销售退货（status=2, update_time）
         var salesReturn = reportMapper.todaySalesReturn();
         if (salesReturn != null) {
             summary.setTodaySalesReturnAmount(salesReturn.getTodaySalesReturnAmount());
@@ -119,38 +133,70 @@ public class ReportService {
             summary.setTodayPurchaseReturnCount(purchaseReturn.getTodayPurchaseReturnCount());
         }
 
-        // 毛利
+        // 毛利（出库口径）
         var profit = reportMapper.todaySalesProfit();
         if (profit != null) {
             summary.setTodaySalesProfit(profit.getTodaySalesProfit());
         }
 
-        // 销售目标（可配置常量，后续可改为从数据库读取）
-        summary.setSalesTarget(new java.math.BigDecimal("100000"));
+        // C: 销售目标（来自 application.yaml 配置）
+        summary.setSalesTarget(salesTarget);
 
-        // 同比/环比
-        java.math.BigDecimal todayAmount = summary.getTodaySalesAmount() != null ? summary.getTodaySalesAmount()
-                : java.math.BigDecimal.ZERO;
-        var yesterday = reportMapper.yesterdaySalesSummary();
-        if (yesterday != null && yesterday.getTodaySalesAmount() != null
-                && yesterday.getTodaySalesAmount().compareTo(java.math.BigDecimal.ZERO) > 0) {
-            summary.setMomGrowth(todayAmount.subtract(yesterday.getTodaySalesAmount())
-                    .divide(yesterday.getTodaySalesAmount(), 4, java.math.RoundingMode.HALF_UP)
-                    .multiply(new java.math.BigDecimal("100")));
+        // C: 达成率
+        BigDecimal todayAmount = summary.getTodaySalesAmount() != null ? summary.getTodaySalesAmount()
+                : BigDecimal.ZERO;
+        if (salesTarget.compareTo(BigDecimal.ZERO) > 0) {
+            summary.setAchieveRate(
+                    todayAmount.divide(salesTarget, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100")));
         } else {
-            summary.setMomGrowth(java.math.BigDecimal.ZERO);
+            summary.setAchieveRate(BigDecimal.ZERO);
         }
 
+        // B: 环比（昨日出库口径对比）
+        var yesterday = reportMapper.yesterdaySalesSummary();
+        if (yesterday != null && yesterday.getTodaySalesAmount() != null
+                && yesterday.getTodaySalesAmount().compareTo(BigDecimal.ZERO) > 0) {
+            summary.setMomGrowth(todayAmount.subtract(yesterday.getTodaySalesAmount())
+                    .divide(yesterday.getTodaySalesAmount(), 4, RoundingMode.HALF_UP)
+                    .multiply(new BigDecimal("100")));
+        } else {
+            summary.setMomGrowth(BigDecimal.ZERO);
+        }
+
+        // B: 同比（去年同日出库口径对比）
         var lastYear = reportMapper.lastYearSameDaySalesSummary();
         if (lastYear != null && lastYear.getTodaySalesAmount() != null
-                && lastYear.getTodaySalesAmount().compareTo(java.math.BigDecimal.ZERO) > 0) {
+                && lastYear.getTodaySalesAmount().compareTo(BigDecimal.ZERO) > 0) {
             summary.setYoyGrowth(todayAmount.subtract(lastYear.getTodaySalesAmount())
-                    .divide(lastYear.getTodaySalesAmount(), 4, java.math.RoundingMode.HALF_UP)
-                    .multiply(new java.math.BigDecimal("100")));
+                    .divide(lastYear.getTodaySalesAmount(), 4, RoundingMode.HALF_UP)
+                    .multiply(new BigDecimal("100")));
         } else {
-            summary.setYoyGrowth(java.math.BigDecimal.ZERO);
+            summary.setYoyGrowth(BigDecimal.ZERO);
         }
 
         return summary;
+    }
+
+    // === D: 日期补齐工具方法 ===
+
+    /**
+     * 若 start 为纯日期(YYYY-MM-DD)，补充为 YYYY-MM-DD 00:00:00
+     */
+    private String normalizeStartDate(String start) {
+        if (start != null && start.length() == 10) {
+            return start + " 00:00:00";
+        }
+        return start;
+    }
+
+    /**
+     * 若 end 为纯日期(YYYY-MM-DD)，补充为 YYYY-MM-DD 23:59:59
+     * 避免 create_time <= '2026-02-28' 被解释为 <= '2026-02-28 00:00:00' 从而丢失当天数据
+     */
+    private String normalizeEndDate(String end) {
+        if (end != null && end.length() == 10) {
+            return end + " 23:59:59";
+        }
+        return end;
     }
 }

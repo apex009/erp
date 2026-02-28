@@ -6,19 +6,21 @@
       <span class="header-time">最近更新时间 {{ updateTime }}</span>
     </div>
 
-    <!-- 第一行：今日销售 + 销售目标 + 客户情况 -->
+    <!-- 第一行：今日成交 + 销售目标 + 客户情况 -->
     <el-row :gutter="16">
       <el-col :span="10">
         <div class="panel" @click="goTo('/sales/orders', { date: todayDate })">
           <div class="panel-header">
-            <span class="panel-title">今日销售</span>
+            <el-tooltip content="统计口径：订单状态=已出库(status=3)，时间=出库完成时间(update_time)" placement="top">
+              <span class="panel-title">今日成交</span>
+            </el-tooltip>
             <a class="panel-link">查看详情</a>
           </div>
           <div class="panel-body">
             <div class="big-amount">{{ formatMoney(data.todaySalesAmount) }} 元</div>
             <el-row :gutter="12" class="sub-stats">
               <el-col :span="12">
-                <div class="stat-label">销售订单</div>
+                <div class="stat-label">成交订单</div>
                 <div class="stat-value">{{ formatMoney(data.todaySalesAmount) }} 元 / {{ data.todaySalesOrderCount || 0 }} 单</div>
               </el-col>
               <el-col :span="12">
@@ -202,7 +204,7 @@ const data = reactive({
   todaySalesOutAmount: 0, todaySalesOutCount: 0,
   todaySalesReturnAmount: 0, todaySalesReturnCount: 0,
   todaySalesProfit: 0,
-  salesTarget: 0, yoyGrowth: 0, momGrowth: 0,
+  salesTarget: 0, achieveRate: 0, yoyGrowth: 0, momGrowth: 0,
   todayPurchaseAmount: 0, todayPurchaseOrderCount: 0,
   todayPurchaseInAmount: 0, todayPurchaseInCount: 0,
   todayPurchaseReturnAmount: 0, todayPurchaseReturnCount: 0,
@@ -238,12 +240,12 @@ const goTo = (path, query = {}) => {
 const targetChartOption = computed(() => {
   const target = data.salesTarget || 1
   const achieved = data.todaySalesAmount || 0
-  const rate = target > 0 ? (achieved / target * 100).toFixed(1) : 0
+  const rate = data.achieveRate != null ? Number(data.achieveRate).toFixed(1) : '0.0'
   return {
     series: [{
       type: 'pie', radius: ['60%', '80%'], center: ['50%', '50%'],
       avoidLabelOverlap: false,
-      label: { show: true, position: 'center', formatter: `${rate}%\n销售达成率`, fontSize: 14, fontWeight: 'bold', color: '#409EFF', lineHeight: 22 },
+      label: { show: true, position: 'center', formatter: `${rate}%\n成交达成率`, fontSize: 14, fontWeight: 'bold', color: '#409EFF', lineHeight: 22 },
       data: [
         { value: achieved, name: '已达成', itemStyle: { color: '#409EFF' } },
         { value: Math.max(0, target - achieved), name: '未达成', itemStyle: { color: '#EBEEF5' } }

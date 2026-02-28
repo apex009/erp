@@ -109,4 +109,43 @@ const router = createRouter({
   ]
 })
 
+// 路由守卫：登录后自动拉取用户信息和菜单权限
+const whiteList = ['/login']
+
+router.beforeEach(async (to, from, next) => {
+  const { useAuthStore } = await import('@/stores/auth')
+  const authStore = useAuthStore()
+
+  if (authStore.token) {
+    if (to.path === '/login') {
+      // 已登录时访问 login 页直接跳转首页
+      next({ path: '/' })
+    } else if (authStore.initialized) {
+      // 已完成初始化，直接放行
+      next()
+    } else {
+      // 未初始化：严格顺序执行 getInfo → fetchMenus
+      try {
+        await authStore.initUserSession()
+        // 初始化成功后重新导航（确保菜单/路由生效）
+        next({ ...to, replace: true })
+      } catch (error) {
+        console.error('User session init failed:', error)
+        // 初始化失败：清理状态，跳转登录，提示用户
+        authStore.resetToken()
+        const { ElMessage } = await import('element-plus')
+        ElMessage.error('登录状态异常，请重新登录')
+        next(`/login?redirect=${to.path}`)
+      }
+    }
+  } else {
+    // 未登录
+    if (whiteList.includes(to.path)) {
+      next()
+    } else {
+      next(`/login?redirect=${to.path}`)
+    }
+  }
+})
+
 export default router

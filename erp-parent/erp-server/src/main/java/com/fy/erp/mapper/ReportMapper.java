@@ -103,12 +103,14 @@ public interface ReportMapper {
 
   // === 经营看板聚合查询 ===
 
+  // 今日成交（出库口径：status=3 已出库，以 update_time 为出库完成时间）
   @Select("""
       SELECT IFNULL(SUM(total_amount), 0) AS todaySalesAmount,
              COUNT(*) AS todaySalesOrderCount
       FROM sales_order
       WHERE deleted = 0
-        AND DATE(create_time) = CURDATE()
+        AND status = 3
+        AND DATE(update_time) = CURDATE()
       """)
   com.fy.erp.dto.report.DashboardSummary todaySalesSummary();
 
@@ -210,21 +212,23 @@ public interface ReportMapper {
       """)
   com.fy.erp.dto.report.DashboardSummary todaySalesProfit();
 
-  // 昨日销售额（用于环比计算）
+  // 昨日成交额（出库口径，用于环比计算）
   @Select("""
       SELECT IFNULL(SUM(total_amount), 0) AS todaySalesAmount
       FROM sales_order
       WHERE deleted = 0
-        AND DATE(create_time) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)
+        AND status = 3
+        AND DATE(update_time) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)
       """)
   com.fy.erp.dto.report.DashboardSummary yesterdaySalesSummary();
 
-  // 去年同日销售额（用于同比计算）
+  // 去年同日成交额（出库口径，用于同比计算）
   @Select("""
       SELECT IFNULL(SUM(total_amount), 0) AS todaySalesAmount
       FROM sales_order
       WHERE deleted = 0
-        AND DATE(create_time) = DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
+        AND status = 3
+        AND DATE(update_time) = DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
       """)
   com.fy.erp.dto.report.DashboardSummary lastYearSameDaySalesSummary();
 }
