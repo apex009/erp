@@ -1,0 +1,7 @@
+# frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+# common
+.DS_Store
+.idea/
