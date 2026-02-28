@@ -143,16 +143,55 @@
       </el-col>
     </el-row>
 
-    <!-- 第三行：销售漏斗 -->
+    <!-- 第三行：销售漏斗 + 成交排行榜 -->
     <el-row :gutter="16" style="margin-top: 16px;">
-      <el-col :span="24">
-        <div class="panel" @click="goTo('/sales/leads')">
+      <el-col :span="14">
+        <div class="panel">
           <div class="panel-header">
-            <span class="panel-title">销售漏斗</span>
-            <a class="panel-link">查看详情</a>
+            <span class="panel-title">销售漏斗（最近30天）</span>
+            <a class="panel-link" @click.stop="goTo('/sales/leads')">查看详情</a>
           </div>
-          <div class="panel-body">
-            <DashboardFunnelChart :option="funnelChartOption" height="300px" :loading="loading" :isEmpty="funnelData.length === 0 && dataLoaded" />
+          <div class="panel-body funnel-container">
+            <div class="funnel-chart-area">
+              <DashboardFunnelChart :option="funnelChartOption" height="300px" :loading="loading" :isEmpty="funnelEmpty" />
+            </div>
+            <div class="funnel-detail">
+              <div class="funnel-detail-header">
+                <span>阶段</span><span>线索数</span><span>预期金额</span><span>转化率</span>
+              </div>
+              <div v-for="item in funnelData" :key="item.stageCode" class="funnel-detail-row">
+                <span class="fd-stage">{{ item.stageName }}</span>
+                <span class="fd-count">{{ item.count }}</span>
+                <span class="fd-amount">{{ formatMoney(item.amount) }}</span>
+                <span class="fd-rate" :class="{ 'rate-good': item.conversionRate > 50 }">
+                  {{ item.conversionRate != null ? item.conversionRate.toFixed(1) + '%' : '-' }}
+                </span>
+              </div>
+              <div v-if="funnelEmpty" class="funnel-detail-empty">暂无数据</div>
+            </div>
+          </div>
+        </div>
+      </el-col>
+
+      <el-col :span="10">
+        <div class="panel rank-panel">
+          <div class="panel-header">
+            <span class="panel-title">🏆 今日成交排行</span>
+            <span class="rank-tip">每5分钟更新</span>
+          </div>
+          <div class="panel-body rank-body">
+            <div v-if="rankList.length === 0 && dataLoaded" class="rank-empty">暂无成交数据</div>
+            <div v-for="(item, idx) in rankList" :key="item.userId" class="rank-row" :class="{ 'rank-top3': idx < 3 }">
+              <div class="rank-index" :class="'rank-' + (idx + 1)">
+                <template v-if="idx < 3">
+                  {{ ['🥇','🥈','🥉'][idx] }}
+                </template>
+                <template v-else>{{ idx + 1 }}</template>
+              </div>
+              <div class="rank-name">{{ item.nickname }}</div>
+              <div class="rank-amount">{{ formatMoney(item.amount) }} 元</div>
+              <div class="rank-count">{{ item.orderCount }} 单</div>
+            </div>
           </div>
         </div>
       </el-col>
@@ -191,13 +230,15 @@ import { useRouter } from 'vue-router'
 import DashboardPieChart from '@/components/charts/DashboardPieChart.vue'
 import DashboardBarChart from '@/components/charts/DashboardBarChart.vue'
 import DashboardFunnelChart from '@/components/charts/DashboardFunnelChart.vue'
-import { getDashboardSummary, getLowStock, getFinanceReceivable, getFinancePayable, getSalesFunnel } from '@/api/report/index'
+import { getDashboardSummary, getLowStock, getFinanceReceivable, getFinancePayable, getSalesFunnel, getSalesRank } from '@/api/report/index'
 
 const router = useRouter()
 const loading = ref(true)
 const dataLoaded = ref(false)
 const lowStockCount = ref(0)
 const funnelData = ref([])
+const funnelEmpty = computed(() => funnelData.value.every(d => d.count === 0) && dataLoaded.value)
+const rankList = ref([])
 
 const data = reactive({
   todaySalesAmount: 0, todaySalesOrderCount: 0,
@@ -235,7 +276,7 @@ const goTo = (path, query = {}) => {
   router.push({ path, query })
 }
 
-// ====== Chart Options (computed, 数据驱动) ======
+// ====== Chart Options ======
 
 const targetChartOption = computed(() => {
   const target = data.salesTarget || 1
@@ -283,47 +324,48 @@ const inventoryChartOption = computed(() => ({
   }]
 }))
 
+const FUNNEL_COLORS = ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C']
+
 const funnelChartOption = computed(() => {
   if (funnelData.value.length === 0) return {}
   const maxCount = Math.max(...funnelData.value.map(d => d.count || 0), 1)
-  const firstCount = funnelData.value[0]?.count || 1
   return {
     tooltip: {
       trigger: 'item',
       formatter: (params) => {
-        const rate = firstCount > 0 ? (params.value / firstCount * 100).toFixed(1) : 0
-        return `${params.name}<br/>数量: ${params.value}<br/>转化率: ${rate}%`
+        const item = funnelData.value[params.dataIndex]
+        const rate = item?.conversionRate != null ? item.conversionRate.toFixed(1) + '%' : '-'
+        const amt = item?.amount != null ? formatMoney(item.amount) : '0.00'
+        return `<b>${params.name}</b><br/>线索数: ${params.value}<br/>预期金额: ${amt} 元<br/>转化率: ${rate}`
       }
     },
     series: [{
       name: '销售漏斗', type: 'funnel',
-      left: '15%', top: 10, bottom: 10, width: '70%',
-      min: 0, max: maxCount,
-      minSize: '0%', maxSize: '100%',
-      sort: 'descending', gap: 2,
+      left: '10%', top: 20, bottom: 20, width: '80%',
+      min: 0, max: maxCount || 1,
+      minSize: '8%', maxSize: '100%',
+      sort: 'none', gap: 8,
       label: {
         show: true, position: 'inside',
-        formatter: (params) => {
-          const rate = firstCount > 0 ? (params.value / firstCount * 100).toFixed(1) : 0
-          return `${params.name}  ${params.value}  (${rate}%)`
-        },
-        color: '#fff', fontSize: 13
+        formatter: '{b}  {c}',
+        color: '#fff', fontSize: 14, fontWeight: 600,
+        textBorderColor: 'rgba(0,0,0,0.2)', textBorderWidth: 2
       },
-      itemStyle: {
-        borderColor: '#fff', borderWidth: 1
-      },
+      labelLine: { show: false },
+      itemStyle: { borderColor: '#fff', borderWidth: 2, borderRadius: 4 },
       emphasis: {
-        label: { fontSize: 15 }
+        label: { fontSize: 16 },
+        itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.15)' }
       },
       data: funnelData.value.map((item, i) => ({
         value: item.count,
-        name: item.stage,
+        name: item.stageName,
         itemStyle: {
           color: {
             type: 'linear', x: 0, y: 0, x2: 1, y2: 0,
             colorStops: [
-              { offset: 0, color: ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe'][i % 5] },
-              { offset: 1, color: ['#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe'][i % 5] }
+              { offset: 0, color: FUNNEL_COLORS[i] },
+              { offset: 1, color: FUNNEL_COLORS[i] + 'CC' }
             ]
           }
         }
@@ -365,12 +407,13 @@ const payableChartOption = computed(() => ({
 const loadData = async () => {
   loading.value = true
   try {
-    const [summary, stocks, receivable, payable, funnel] = await Promise.allSettled([
+    const [summary, stocks, receivable, payable, funnel, rank] = await Promise.allSettled([
       getDashboardSummary(),
       getLowStock(),
       getFinanceReceivable(),
       getFinancePayable(),
-      getSalesFunnel()
+      getSalesFunnel(),
+      getSalesRank(10)
     ])
 
     if (summary.status === 'fulfilled' && summary.value) {
@@ -396,7 +439,11 @@ const loadData = async () => {
     }
 
     if (funnel.status === 'fulfilled' && Array.isArray(funnel.value)) {
-      funnelData.value = funnel.value.map(item => ({ stage: item.stage, count: item.count }))
+      funnelData.value = funnel.value
+    }
+
+    if (rank.status === 'fulfilled' && Array.isArray(rank.value)) {
+      rankList.value = rank.value
     }
   } catch (e) {
     console.error('Dashboard load failed', e)
@@ -489,6 +536,56 @@ onMounted(() => {
   .inv-label { color: #909399; }
   .inv-value { font-weight: 500; }
 }
+
+/* 排行榜样式 */
+.rank-panel {
+  cursor: default;
+}
+.rank-tip { font-size: 11px; color: #C0C4CC; }
+.rank-body { padding: 8px 16px; max-height: 320px; overflow-y: auto; }
+.rank-empty { text-align: center; color: #C0C4CC; padding: 40px 0; font-size: 14px; }
+.rank-row {
+  display: flex;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #f5f5f5;
+  font-size: 13px;
+  &:last-child { border-bottom: none; }
+  &.rank-top3 { font-weight: 600; }
+}
+.rank-index {
+  width: 32px; text-align: center; font-size: 16px;
+  &.rank-1 { font-size: 20px; }
+  &.rank-2 { font-size: 18px; }
+  &.rank-3 { font-size: 16px; }
+}
+.rank-name { flex: 1; color: #303133; padding-left: 8px; }
+.rank-amount { color: #F56C6C; font-weight: 600; min-width: 100px; text-align: right; }
+.rank-count { color: #909399; min-width: 50px; text-align: right; margin-left: 8px; }
+
+/* 漏斗详情 */
+.funnel-container { display: flex; align-items: stretch; gap: 16px; }
+.funnel-chart-area { flex: 1; min-width: 0; }
+.funnel-detail {
+  width: 240px; flex-shrink: 0;
+  display: flex; flex-direction: column;
+}
+.funnel-detail-header {
+  display: grid; grid-template-columns: 70px 50px 1fr 60px;
+  font-size: 12px; color: #909399; font-weight: 600;
+  padding: 8px 0; border-bottom: 2px solid #ebeef5;
+}
+.funnel-detail-row {
+  display: grid; grid-template-columns: 70px 50px 1fr 60px;
+  font-size: 13px; padding: 10px 0;
+  border-bottom: 1px solid #f5f5f5;
+  &:last-child { border-bottom: none; }
+}
+.fd-stage { color: #303133; font-weight: 500; }
+.fd-count { color: #606266; text-align: center; }
+.fd-amount { color: #303133; text-align: right; }
+.fd-rate { color: #909399; text-align: right; &.rate-good { color: #67C23A; font-weight: 600; } }
+.funnel-detail-empty { text-align: center; color: #C0C4CC; padding: 40px 0; }
 
 .color-blue { color: #409EFF; }
 .color-green { color: #67C23A; }

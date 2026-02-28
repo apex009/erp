@@ -1,13 +1,9 @@
 package com.fy.erp.service;
 
-import com.fy.erp.dto.report.DashboardSummary;
-import com.fy.erp.dto.report.FinanceSummary;
-import com.fy.erp.dto.report.LowStockItem;
-import com.fy.erp.dto.report.SalesAmountByDay;
-import com.fy.erp.dto.report.SalesByCustomer;
-import com.fy.erp.dto.report.SalesByProduct;
-import com.fy.erp.dto.report.SalesFunnelItem;
+import com.fy.erp.dto.report.*;
 import com.fy.erp.mapper.ReportMapper;
+import com.fy.erp.security.UserContext;
+import com.fy.erp.security.UserPrincipal;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -26,31 +22,111 @@ public class ReportService {
         this.reportMapper = reportMapper;
     }
 
-    @org.springframework.cache.annotation.Cacheable(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, key = "'sales:day:' + #start + ':' + #end")
-    public List<SalesAmountByDay> salesAmountByDay(String start, String end) {
-        // D: 日期补齐，保证包含 end 当天全部数据
-        start = normalizeStartDate(start);
-        end = normalizeEndDate(end);
-        return reportMapper.salesAmountByDay(start, end);
+    /**
+     * 解析数据范围：
+     * - ADMIN → null(全量)，支持可选 salesUserId 筛选
+     * - SALES → 强制当前 userId
+     * - FIN → null(全局财务指标)
+     */
+    public Long resolveScope(Long requestedUserId) {
+        UserPrincipal user = UserContext.get();
+        if (user == null)
+            return null;
+        List<String> roles = user.getRoles();
+        if (roles.contains("ADMIN")) {
+            // 管理员：可传指定销售员 ID，不传则看全量
+            return requestedUserId;
+        }
+        if (roles.contains("SALES")) {
+            // 销售员：强制只看自己（忽略传入参数）
+            return user.getUserId();
+        }
+        // 财务：看全局
+        return null;
     }
 
-    @org.springframework.cache.annotation.Cacheable(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, key = "'sales:customer:' + #start + ':' + #end")
-    public List<SalesByCustomer> salesByCustomer(String start, String end) {
-        start = normalizeStartDate(start);
-        end = normalizeEndDate(end);
-        return reportMapper.salesByCustomer(start, end);
+    // ======================== 子报表 ========================
+
+    @org.springframework.cache.annotation.Cacheable(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, key = "'sales:day:' + #start + ':' + #end + ':' + #salesUserId")
+    public List<SalesAmountByDay> salesAmountByDay(String start, String end, Long salesUserId) {
+        return reportMapper.salesAmountByDay(normalizeStartDate(start), normalizeEndDate(end), salesUserId);
     }
 
-    @org.springframework.cache.annotation.Cacheable(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, key = "'sales:product:' + #start + ':' + #end")
-    public List<SalesByProduct> salesByProduct(String start, String end) {
-        start = normalizeStartDate(start);
-        end = normalizeEndDate(end);
-        return reportMapper.salesByProduct(start, end);
+    @org.springframework.cache.annotation.Cacheable(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, key = "'sales:customer:' + #start + ':' + #end + ':' + #salesUserId")
+    public List<SalesByCustomer> salesByCustomer(String start, String end, Long salesUserId) {
+        return reportMapper.salesByCustomer(normalizeStartDate(start), normalizeEndDate(end), salesUserId);
     }
 
-    @org.springframework.cache.annotation.Cacheable(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, key = "'sales:funnel'")
-    public List<SalesFunnelItem> salesFunnel() {
-        return reportMapper.salesFunnel();
+    @org.springframework.cache.annotation.Cacheable(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, key = "'sales:product:' + #start + ':' + #end + ':' + #salesUserId")
+    public List<SalesByProduct> salesByProduct(String start, String end, Long salesUserId) {
+        return reportMapper.salesByProduct(normalizeStartDate(start), normalizeEndDate(end), salesUserId);
+    }
+
+    /**
+     * 固定阶段定义（按业务顺序）
+     */
+    private static final String[][] STAGES = {
+            { "潜在客户", "潜在客户" },
+            { "已跟进", "已跟进" },
+            { "报价中", "报价中" },
+            { "已成交", "已成交" }
+    };
+
+    /**
+     * 漏斗数据（阶段固定顺序 + 缺失补0 + 转化率计算）
+     * - start/end 为空则默认最近 30 天
+     * - ownerUserId 来自 resolveScope()
+     */
+    @org.springframework.cache.annotation.Cacheable(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, key = "'sales:funnel:' + #ownerUserId + ':' + #start + ':' + #end")
+    public List<SalesFunnelItem> salesFunnel(Long ownerUserId, String start, String end) {
+        // 默认最近 30 天
+        if (start == null || start.isBlank()) {
+            start = java.time.LocalDate.now().minusDays(30).toString();
+        }
+        if (end == null || end.isBlank()) {
+            end = java.time.LocalDate.now().toString();
+        }
+        start = normalizeStartDate(start);
+        end = normalizeEndDate(end);
+
+        // 1. 查询数据库（可能缺失某些阶段）
+        List<SalesFunnelItem> dbItems = reportMapper.salesFunnel(ownerUserId, start, end);
+        java.util.Map<String, SalesFunnelItem> dbMap = new java.util.HashMap<>();
+        for (SalesFunnelItem item : dbItems) {
+            dbMap.put(item.getStageCode(), item);
+        }
+
+        // 2. 固定阶段顺序 + 补齐缺失阶段
+        List<SalesFunnelItem> result = new java.util.ArrayList<>();
+        for (String[] stage : STAGES) {
+            SalesFunnelItem item = dbMap.get(stage[0]);
+            SalesFunnelItem filled = new SalesFunnelItem();
+            filled.setStageCode(stage[0]);
+            filled.setStageName(stage[1]);
+            filled.setCount(item != null ? item.getCount() : 0L);
+            filled.setAmount(item != null && item.getAmount() != null ? item.getAmount() : java.math.BigDecimal.ZERO);
+            result.add(filled);
+        }
+
+        // 3. 计算转化率 = 当前阶段 count / 上一阶段 count * 100
+        for (int i = 0; i < result.size(); i++) {
+            if (i == 0) {
+                result.get(i).setConversionRate(null); // 第一阶段没有上一阶段
+            } else {
+                long prevCount = result.get(i - 1).getCount();
+                long curCount = result.get(i).getCount();
+                if (prevCount > 0) {
+                    result.get(i).setConversionRate(
+                            java.math.BigDecimal.valueOf(curCount)
+                                    .divide(java.math.BigDecimal.valueOf(prevCount), 4, java.math.RoundingMode.HALF_UP)
+                                    .multiply(new java.math.BigDecimal("100")));
+                } else {
+                    result.get(i).setConversionRate(java.math.BigDecimal.ZERO);
+                }
+            }
+        }
+
+        return result;
     }
 
     @org.springframework.cache.annotation.Cacheable(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, key = "'inventory:low-stock'")
@@ -68,23 +144,25 @@ public class ReportService {
         return reportMapper.payableSummary();
     }
 
-    @org.springframework.cache.annotation.Cacheable(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, key = "'dashboard:summary'")
-    public DashboardSummary dashboardSummary() {
+    // ======================== 看板聚合 ========================
+
+    @org.springframework.cache.annotation.Cacheable(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, key = "'dashboard:summary:' + #salesUserId")
+    public DashboardSummary dashboardSummary(Long salesUserId) {
         DashboardSummary summary = new DashboardSummary();
 
-        // 今日成交（出库口径：status=3, update_time）
-        var sales = reportMapper.todaySalesSummary();
+        // 今日成交（出库口径）
+        var sales = reportMapper.todaySalesSummary(salesUserId);
         if (sales != null) {
             summary.setTodaySalesAmount(sales.getTodaySalesAmount());
             summary.setTodaySalesOrderCount(sales.getTodaySalesOrderCount());
         }
-        var salesOut = reportMapper.todaySalesOutbound();
+        var salesOut = reportMapper.todaySalesOutbound(salesUserId);
         if (salesOut != null) {
             summary.setTodaySalesOutAmount(salesOut.getTodaySalesOutAmount());
             summary.setTodaySalesOutCount(salesOut.getTodaySalesOutCount());
         }
 
-        // 采购情况
+        // 采购情况（全局，不按用户过滤）
         var purchase = reportMapper.todayPurchaseSummary();
         if (purchase != null) {
             summary.setTodayPurchaseAmount(purchase.getTodayPurchaseAmount());
@@ -96,20 +174,20 @@ public class ReportService {
             summary.setTodayPurchaseInCount(purchaseIn.getTodayPurchaseInCount());
         }
 
-        // 客户
+        // 客户（全局）
         var customers = reportMapper.todayNewCustomers();
         if (customers != null) {
             summary.setNewCustomerCount(customers.getNewCustomerCount());
         }
 
-        // 库存
+        // 库存（全局）
         var inventory = reportMapper.inventorySummary();
         if (inventory != null) {
             summary.setInventoryTotalAmount(inventory.getInventoryTotalAmount());
             summary.setProductTotalCount(inventory.getProductTotalCount());
         }
 
-        // 收付款
+        // 收付款（全局）
         var receivable = reportMapper.todayReceivable();
         if (receivable != null) {
             summary.setTodayReceivableAmount(receivable.getTodayReceivableAmount());
@@ -119,30 +197,30 @@ public class ReportService {
             summary.setTodayPayableAmount(payable.getTodayPayableAmount());
         }
 
-        // 销售退货（status=2, update_time）
-        var salesReturn = reportMapper.todaySalesReturn();
+        // 销售退货
+        var salesReturn = reportMapper.todaySalesReturn(salesUserId);
         if (salesReturn != null) {
             summary.setTodaySalesReturnAmount(salesReturn.getTodaySalesReturnAmount());
             summary.setTodaySalesReturnCount(salesReturn.getTodaySalesReturnCount());
         }
 
-        // 采购退货
+        // 采购退货（全局）
         var purchaseReturn = reportMapper.todayPurchaseReturn();
         if (purchaseReturn != null) {
             summary.setTodayPurchaseReturnAmount(purchaseReturn.getTodayPurchaseReturnAmount());
             summary.setTodayPurchaseReturnCount(purchaseReturn.getTodayPurchaseReturnCount());
         }
 
-        // 毛利（出库口径）
-        var profit = reportMapper.todaySalesProfit();
+        // 毛利
+        var profit = reportMapper.todaySalesProfit(salesUserId);
         if (profit != null) {
             summary.setTodaySalesProfit(profit.getTodaySalesProfit());
         }
 
-        // C: 销售目标（来自 application.yaml 配置）
+        // 销售目标
         summary.setSalesTarget(salesTarget);
 
-        // C: 达成率
+        // 达成率
         BigDecimal todayAmount = summary.getTodaySalesAmount() != null ? summary.getTodaySalesAmount()
                 : BigDecimal.ZERO;
         if (salesTarget.compareTo(BigDecimal.ZERO) > 0) {
@@ -152,8 +230,8 @@ public class ReportService {
             summary.setAchieveRate(BigDecimal.ZERO);
         }
 
-        // B: 环比（昨日出库口径对比）
-        var yesterday = reportMapper.yesterdaySalesSummary();
+        // 环比（昨日）
+        var yesterday = reportMapper.yesterdaySalesSummary(salesUserId);
         if (yesterday != null && yesterday.getTodaySalesAmount() != null
                 && yesterday.getTodaySalesAmount().compareTo(BigDecimal.ZERO) > 0) {
             summary.setMomGrowth(todayAmount.subtract(yesterday.getTodaySalesAmount())
@@ -163,8 +241,8 @@ public class ReportService {
             summary.setMomGrowth(BigDecimal.ZERO);
         }
 
-        // B: 同比（去年同日出库口径对比）
-        var lastYear = reportMapper.lastYearSameDaySalesSummary();
+        // 同比（去年同日）
+        var lastYear = reportMapper.lastYearSameDaySalesSummary(salesUserId);
         if (lastYear != null && lastYear.getTodaySalesAmount() != null
                 && lastYear.getTodaySalesAmount().compareTo(BigDecimal.ZERO) > 0) {
             summary.setYoyGrowth(todayAmount.subtract(lastYear.getTodaySalesAmount())
@@ -177,26 +255,24 @@ public class ReportService {
         return summary;
     }
 
-    // === D: 日期补齐工具方法 ===
+    // ======================== 排行榜 ========================
 
-    /**
-     * 若 start 为纯日期(YYYY-MM-DD)，补充为 YYYY-MM-DD 00:00:00
-     */
+    @org.springframework.cache.annotation.Cacheable(value = com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD, key = "'rank:sales:today:' + #top")
+    public List<SalesRankItem> salesRank(int top) {
+        return reportMapper.salesRank(top);
+    }
+
+    // ======================== 工具 ========================
+
     private String normalizeStartDate(String start) {
-        if (start != null && start.length() == 10) {
+        if (start != null && start.length() == 10)
             return start + " 00:00:00";
-        }
         return start;
     }
 
-    /**
-     * 若 end 为纯日期(YYYY-MM-DD)，补充为 YYYY-MM-DD 23:59:59
-     * 避免 create_time <= '2026-02-28' 被解释为 <= '2026-02-28 00:00:00' 从而丢失当天数据
-     */
     private String normalizeEndDate(String end) {
-        if (end != null && end.length() == 10) {
+        if (end != null && end.length() == 10)
             return end + " 23:59:59";
-        }
         return end;
     }
 }

@@ -50,3 +50,11 @@ export function getFinancePayable() {
     method: 'get'
   })
 }
+
+export function getSalesRank(top = 10) {
+  return request({
+    url: '/reports/rank/sales',
+    method: 'get',
+    params: { top }
+  })
+}
