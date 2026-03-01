@@ -23,7 +23,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public Result<LoginResponseDTO> login(@Valid @RequestBody LoginRequestDTO request) {
+    public com.fy.erp.result.Result<LoginResponseDTO> login(@Valid @RequestBody LoginRequestDTO request) {
         return Result.success(authService.login(request));
     }
 
@@ -34,12 +34,12 @@ public class AuthController {
 
     @PostMapping("/logout")
     public Result<Void> logout() {
-        return Result.success();
+        return com.fy.erp.result.Result.success();
     }
 
     @GetMapping("/me")
     public Result<UserPrincipal> me() {
-        return Result.success(UserContext.get());
+        return com.fy.erp.result.Result.success(UserContext.get());
     }
 
     @GetMapping("/menus")
