@@ -8,7 +8,7 @@ import java.math.BigDecimal;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("receipt")
+@TableName("fin_receipt")
 public class Receipt extends BaseEntity {
     private Long receivableId;
     private BigDecimal amount;

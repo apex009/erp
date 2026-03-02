@@ -65,15 +65,17 @@
     </el-dialog>
 
     <!-- Permission Config Dialog -->
-    <el-dialog v-model="permDialogVisible" title="配置权限" width="700px">
-       <el-transfer
-        v-model="checkedPerms"
-        :data="allPerms"
-        :titles="['可选权限', '已选权限']"
-        :props="{ key: 'id', label: 'permName' }"
-        filterable
-        filter-placeholder="搜索权限"
-      />
+    <el-dialog v-model="permDialogVisible" title="配置权限" width="500px">
+      <div v-loading="treeLoading" style="max-height: 500px; overflow-y: auto;">
+        <el-tree
+          ref="treeRef"
+          :data="allPerms"
+          show-checkbox
+          node-key="id"
+          default-expand-all
+          :props="{ label: 'label', children: 'children' }"
+        />
+      </div>
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="permDialogVisible = false">取消</el-button>
@@ -87,7 +89,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { getRolePage, createRole, updateRole, deleteRole, getRolePermissions, updateRolePermissions } from '@/api/role'
-import { getPermissionPage } from '@/api/permission'
+import { getPermissionTree } from '@/api/permission'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const loading = ref(false)
@@ -111,9 +113,10 @@ const roleForm = reactive({
 
 // Permission Dialog Logic
 const permDialogVisible = ref(false)
+const treeLoading = ref(false)
+const treeRef = ref(null)
 const currentRoleId = ref(null)
 const allPerms = ref([])
-const checkedPerms = ref([])
 
 const roleRules = {
   roleName: [{ required: true, message: '请输入角色名称', trigger: 'blur' }],
@@ -159,22 +162,66 @@ const handleEdit = (row) => {
 // Open Permission Dialog
 const handlePerms = async (row) => {
     currentRoleId.value = row.id
-    // 1. Get all permissions (if not loaded)
-    if (allPerms.value.length === 0) {
-        const res = await getPermissionPage({ page: 1, size: 1000 }) // Get all possible perms
-        allPerms.value = res.records
-    }
-    // 2. Get current role's permissions
-    const res = await getRolePermissions(row.id)
-    // Map backend response (SysRolePermission objects) to just IDs
-    checkedPerms.value = res.map(item => item.permId)
-    
     permDialogVisible.value = true
+    treeLoading.value = true
+    
+    try {
+        // 1. Get all permissions as tree (if not loaded)
+        if (allPerms.value.length === 0) {
+            allPerms.value = await getPermissionTree()
+        }
+        
+        // 2. Get current role's permissions (flat IDs)
+        const rolePerms = await getRolePermissions(row.id)
+        const rolePermIds = new Set(rolePerms.map(item => item.permId))
+
+        // 3. Determine which tree nodes to check
+        // A node (View/Manage) is checked if any of its permIds are present
+        const checkedKeys = []
+        
+        const traverse = (nodes) => {
+            nodes.forEach(node => {
+                if (node.permIds && node.permIds.length > 0) {
+                    // It's a leaf node (查看/管理)
+                    // If at least one perm is assigned, consider it checked for the simplified view
+                    const isChecked = node.permIds.some(id => rolePermIds.has(id))
+                    if (isChecked) {
+                        checkedKeys.push(node.id)
+                    }
+                }
+                if (node.children) {
+                    traverse(node.children)
+                }
+            })
+        }
+        traverse(allPerms.value)
+        
+        // Wait for next tick to ensure tree is rendered
+        setTimeout(() => {
+            if (treeRef.value) {
+                treeRef.value.setCheckedKeys(checkedKeys)
+            }
+        }, 10)
+
+    } catch (e) {
+        console.error(e)
+    } finally {
+        treeLoading.value = false
+    }
 }
 
 const submitPerms = async () => {
     try {
-        await updateRolePermissions(currentRoleId.value, checkedPerms.value)
+        const checkedNodes = treeRef.value.getCheckedNodes(false, true)
+        const allPermIds = new Set()
+        
+        checkedNodes.forEach(node => {
+            if (node.permIds) {
+                node.permIds.forEach(id => allPermIds.add(id))
+            }
+        })
+
+        await updateRolePermissions(currentRoleId.value, Array.from(allPermIds))
         ElMessage.success('权限更新成功')
         permDialogVisible.value = false
     } catch (e) {

@@ -14,7 +14,7 @@ public class Customer extends BaseEntity {
     private String contact;
     private String phone;
     private Integer level;
-    private Long salesUserId;
+    private Long ownerUserId;
     private BigDecimal creditLimit;
     private Integer status;
 }

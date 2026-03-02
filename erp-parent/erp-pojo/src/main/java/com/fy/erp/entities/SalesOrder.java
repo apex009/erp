@@ -12,7 +12,7 @@ import java.math.BigDecimal;
 public class SalesOrder extends BaseEntity {
     private String orderNo;
     private Long customerId;
-    private Long salesUserId;
+    private Long ownerUserId;
     private BigDecimal totalAmount;
     private Integer status;
     private String remark;

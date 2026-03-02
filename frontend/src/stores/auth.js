@@ -115,6 +115,7 @@ export const useAuthStore = defineStore('auth', {
       this.permissions = []
       this.initialized = false
       localStorage.removeItem('token')
+      window.location.href = '/login?redirect=/' // 强制刷新清空路由缓存
     }
   }
 })

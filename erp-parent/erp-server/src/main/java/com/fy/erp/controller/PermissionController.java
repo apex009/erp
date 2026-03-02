@@ -2,10 +2,13 @@ package com.fy.erp.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fy.erp.dto.PermissionTreeDTO;
 import com.fy.erp.entities.SysPermission;
 import com.fy.erp.result.Result;
 import com.fy.erp.service.SysPermissionService;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/permissions")
@@ -16,17 +19,16 @@ public class PermissionController {
         this.permissionService = permissionService;
     }
 
-    @PostMapping("/sync")
-    public Result<Void> sync() {
-        permissionService.syncPermissions();
-        return Result.success();
+    @GetMapping("/tree")
+    public Result<List<PermissionTreeDTO>> tree() {
+        return Result.success(permissionService.getPermissionTree());
     }
 
     @GetMapping
     public Result<Page<SysPermission>> page(@RequestParam(defaultValue = "1") long page,
-                                            @RequestParam(defaultValue = "10") long size,
-                                            @RequestParam(required = false) String keyword,
-                                            @RequestParam(required = false) Integer status) {
+            @RequestParam(defaultValue = "10") long size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer status) {
         LambdaQueryWrapper<SysPermission> wrapper = new LambdaQueryWrapper<>();
         if (keyword != null && !keyword.isBlank()) {
             wrapper.and(w -> w.like(SysPermission::getPermName, keyword)
@@ -37,24 +39,5 @@ public class PermissionController {
             wrapper.eq(SysPermission::getStatus, status);
         }
         return Result.success(permissionService.page(new Page<>(page, size), wrapper));
-    }
-
-    @PostMapping
-    public Result<SysPermission> create(@RequestBody SysPermission permission) {
-        permissionService.save(permission);
-        return Result.success(permission);
-    }
-
-    @PutMapping("/{id}")
-    public Result<SysPermission> update(@PathVariable Long id, @RequestBody SysPermission permission) {
-        permission.setId(id);
-        permissionService.updateById(permission);
-        return Result.success(permission);
-    }
-
-    @DeleteMapping("/{id}")
-    public Result<Void> delete(@PathVariable Long id) {
-        permissionService.removeById(id);
-        return Result.success();
     }
 }

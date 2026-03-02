@@ -18,10 +18,10 @@ public class CustomerController {
 
     @GetMapping
     public Result<Page<Customer>> page(@RequestParam(defaultValue = "1") long page,
-                                       @RequestParam(defaultValue = "10") long size,
-                                       @RequestParam(required = false) String keyword,
-                                       @RequestParam(required = false) Integer level,
-                                       @RequestParam(required = false) Integer status) {
+            @RequestParam(defaultValue = "10") long size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer level,
+            @RequestParam(required = false) Integer status) {
         LambdaQueryWrapper<Customer> wrapper = new LambdaQueryWrapper<>();
         if (keyword != null && !keyword.isBlank()) {
             wrapper.and(w -> w.like(Customer::getName, keyword)
@@ -34,6 +34,12 @@ public class CustomerController {
         if (status != null) {
             wrapper.eq(Customer::getStatus, status);
         }
+
+        java.util.List<String> userRoles = com.fy.erp.security.UserContext.get().getRoles();
+        if (userRoles.contains("SALES") && !userRoles.contains("ADMIN") && !userRoles.contains("FIN")) {
+            wrapper.eq(Customer::getOwnerUserId, com.fy.erp.security.UserContext.get().getUserId());
+        }
+
         return Result.success(customerService.page(new Page<>(page, size), wrapper));
     }
 

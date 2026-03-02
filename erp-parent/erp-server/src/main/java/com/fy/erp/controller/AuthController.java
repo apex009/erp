@@ -1,5 +1,4 @@
 package com.fy.erp.controller;
-
 import com.fy.erp.dto.LoginRequestDTO;
 import com.fy.erp.dto.LoginResponseDTO;
 import com.fy.erp.dto.SmsLoginRequestDTO;
@@ -23,23 +22,23 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public com.fy.erp.result.Result<LoginResponseDTO> login(@Valid @RequestBody LoginRequestDTO request) {
-        return Result.success(authService.login(request));
+    public Result<LoginResponseDTO> login(@Valid @RequestBody LoginRequestDTO loginRequestDTO) {
+        return Result.success(authService.login(loginRequestDTO));
     }
 
     @PostMapping("/login/sms")
-    public Result<LoginResponseDTO> loginBySms(@Valid @RequestBody SmsLoginRequestDTO request) {
-        return Result.success(authService.loginBySms(request));
+    public Result<LoginResponseDTO> loginBySms(@Valid @RequestBody SmsLoginRequestDTO smsLoginRequestDTO) {
+        return Result.success(authService.loginBySms(smsLoginRequestDTO));
     }
 
     @PostMapping("/logout")
     public Result<Void> logout() {
-        return com.fy.erp.result.Result.success();
+        return Result.success();
     }
 
     @GetMapping("/me")
     public Result<UserPrincipal> me() {
-        return com.fy.erp.result.Result.success(UserContext.get());
+        return Result.success(UserContext.get());
     }
 
     @GetMapping("/menus")

@@ -36,6 +36,11 @@ public class ReceivableController {
         if (status != null) {
             wrapper.eq(Receivable::getStatus, status);
         }
+
+        java.util.List<String> userRoles = com.fy.erp.security.UserContext.get().getRoles();
+        if (userRoles.contains("SALES") && !userRoles.contains("ADMIN") && !userRoles.contains("FIN")) {
+            wrapper.eq(Receivable::getOwnerUserId, com.fy.erp.security.UserContext.get().getUserId());
+        }
         return Result.success(receivableService.pageWithNames(new Page<>(page, size), wrapper));
     }
 

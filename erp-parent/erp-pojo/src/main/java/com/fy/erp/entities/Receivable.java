@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 public class Receivable extends BaseEntity {
     private Long customerId;
     private Long orderId;
+    private Long ownerUserId;
     private BigDecimal amount;
     private BigDecimal paidAmount;
     private Integer status;

@@ -9,7 +9,7 @@
         <el-option label="已转订单" :value="3" />
       </el-select>
       <el-button type="primary" @click="handleSearch">搜索</el-button>
-      <el-button type="success" @click="handleCreate">新增申请</el-button>
+      <el-button v-if="authStore.hasPerm('api:purchase:write')" type="success" @click="handleCreate">新增申请</el-button>
     </div>
 
     <el-table v-loading="loading" :data="list" border style="width: 100%; margin-top: 20px;">
@@ -35,9 +35,9 @@
       </el-table-column>
       <el-table-column label="操作" width="250">
         <template #default="scope">
-          <el-button v-if="scope.row.status === 0" link type="primary" @click="handleApprove(scope.row)">审核</el-button>
-          <el-button v-if="scope.row.status === 0" link type="danger" @click="handleReject(scope.row)">驳回</el-button>
-          <el-button v-if="scope.row.status === 1" link type="success" @click="handleToOrder(scope.row)">转订单</el-button>
+          <el-button v-if="scope.row.status === 0 && authStore.hasPerm('api:purchase-orders:{id}:approve:post')" link type="primary" @click="handleApprove(scope.row)">审核</el-button>
+          <el-button v-if="scope.row.status === 0 && authStore.hasPerm('api:purchase-orders:{id}:approve:post')" link type="danger" @click="handleReject(scope.row)">驳回</el-button>
+          <el-button v-if="scope.row.status === 1 && authStore.hasPerm('api:purchase:write')" link type="success" @click="handleToOrder(scope.row)">转订单</el-button>
           <el-button link type="info" @click="handleDetail(scope.row)">详情</el-button>
         </template>
       </el-table-column>
@@ -106,18 +106,54 @@
       </template>
     </el-dialog>
 
+    <!-- Detail Drawer -->
+    <el-drawer v-model="detailVisible" title="采购申请详情" size="60%">
+      <div v-loading="detailLoading" v-if="detailData">
+        <el-descriptions title="基础信息" :column="2" border>
+          <el-descriptions-item label="申请单号">{{ detailData.requestNo }}</el-descriptions-item>
+          <el-descriptions-item label="供应商">{{ suppliers.find(s => s.id === detailData.supplierId)?.name || '未知供应商' }}</el-descriptions-item>
+          <el-descriptions-item label="申请人">{{ detailData.applicant }}</el-descriptions-item>
+          <el-descriptions-item label="申请时间">{{ formatDate(detailData.createTime) }}</el-descriptions-item>
+          <el-descriptions-item label="预估总额">¥{{ detailData.totalAmount }}</el-descriptions-item>
+          <el-descriptions-item label="状态">
+            <el-tag :type="statusMap[detailData.status]?.type">{{ statusMap[detailData.status]?.label }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="备注" :span="2">{{ detailData.remark || '无' }}</el-descriptions-item>
+        </el-descriptions>
+        
+        <el-divider content-position="left">商品明细</el-divider>
+        <el-table :data="detailItems" border>
+          <el-table-column prop="productId" label="商品ID" width="100" />
+          <el-table-column label="仓库" width="150">
+             <template #default="scope">
+                 {{ warehouses.find(w => w.id === scope.row.warehouseId)?.name || scope.row.warehouseId }}
+             </template>
+          </el-table-column>
+          <el-table-column prop="price" label="申请单价">
+              <template #default="scope">¥{{ scope.row.price }}</template>
+          </el-table-column>
+          <el-table-column prop="quantity" label="申请数量" />
+          <el-table-column label="小计">
+              <template #default="scope">¥{{ (scope.row.price * scope.row.quantity).toFixed(2) }}</template>
+          </el-table-column>
+        </el-table>
+      </div>
+    </el-drawer>
+
     <ProductSelector v-model="showProductSelector" @select="handleProductSelect" />
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { getRequestPage, createRequest, approveRequest, rejectRequest, convertToOrder } from '@/api/purchase/request'
+import { getRequestPage, createRequest, approveRequest, rejectRequest, convertToOrder, getRequest, getRequestItems } from '@/api/purchase/request'
 import { getSupplierPage } from '@/api/base/supplier'
 import { getWarehousePage } from '@/api/base/warehouse'
 import ProductSelector from '@/components/ProductSelector/index.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useAuthStore } from '@/stores/auth'
 
+const authStore = useAuthStore()
 const loading = ref(false)
 const list = ref([])
 const total = ref(0)
@@ -139,6 +175,11 @@ const statusMap = {
 
 const dialogVisible = ref(false)
 const showProductSelector = ref(false)
+const detailVisible = ref(false)
+const detailLoading = ref(false)
+const detailData = ref(null)
+const detailItems = ref([])
+
 const form = reactive({
     supplierId: null,
     remark: '',
@@ -157,6 +198,7 @@ const getList = async () => {
 }
 
 const getSuppliers = async () => {
+    if (!authStore.hasPerm('api:suppliers:read')) return
     try {
         const res = await getSupplierPage({ page: 1, size: 100 })
         suppliers.value = res.records
@@ -166,6 +208,7 @@ const getSuppliers = async () => {
 }
 
 const getWarehouses = async () => {
+    if (!authStore.hasPerm('api:warehouses:read')) return
     try {
         const res = await getWarehousePage({ page: 1, size: 100 })
         warehouses.value = res.records
@@ -215,12 +258,17 @@ const submitForm = async () => {
         ElMessage.warning('请为所有商品选择仓库')
         return
     }
-    // Convert items for backend DTO if necessary, assuming backend accepts this structure or similar
-    // We might need to check the DTO structure again, but usually it matches
+    
+    // Front-to-Back alignment: Filter out UI-only fields like 'productName', 'sku'
     const submitData = {
         supplierId: form.supplierId,
         remark: form.remark,
-        items: form.items
+        items: form.items.map(item => ({
+            productId: item.productId,
+            warehouseId: item.warehouseId,
+            price: item.price,
+            quantity: item.quantity
+        }))
     }
     
     await createRequest(submitData)
@@ -247,9 +295,23 @@ const handleToOrder = async (row) => {
     getList()
 }
 
-const handleDetail = (row) => {
-    // TODO: Implement detail view or dialog
-    ElMessage.info('详情功能开发中')
+const handleDetail = async (row) => {
+    detailVisible.value = true
+    detailLoading.value = true
+    detailData.value = null
+    detailItems.value = []
+    try {
+        const [detailRes, itemsRes] = await Promise.all([
+            getRequest(row.id),
+            getRequestItems(row.id)
+        ])
+        detailData.value = detailRes
+        detailItems.value = itemsRes
+    } catch (e) {
+        ElMessage.error('获取详情失败')
+    } finally {
+        detailLoading.value = false
+    }
 }
 
 const formatDate = (dateStr) => {

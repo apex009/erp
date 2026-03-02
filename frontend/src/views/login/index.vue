@@ -307,18 +307,26 @@ onUnmounted(() => {
       width: 100%;
       height: 45px;
       font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      color: #ffffff !important;
       margin-top: 10px;
-      background: linear-gradient(to right, #667eea, #764ba2);
+      background: linear-gradient(135deg, #4f46e5 0%, #764ba2 100%);
       border: none;
-      transition: transform 0.2s;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+      transition: all 0.3s ease;
       
-      &:hover {
+      &:hover, &:focus {
         transform: translateY(-2px);
-        opacity: 0.9;
+        opacity: 1 !important;
+        background: linear-gradient(135deg, #5c55ec 0%, #8555b5 100%);
+        box-shadow: 0 6px 18px rgba(79, 70, 229, 0.5);
+        color: #ffffff !important;
       }
       
       &:active {
-        transform: translateY(0);
+        transform: translateY(1px);
+        box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
       }
     }
   }

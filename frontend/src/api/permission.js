@@ -8,6 +8,13 @@ export function getPermissionPage(params) {
   })
 }
 
+export function getPermissionTree() {
+  return request({
+    url: '/permissions/tree',
+    method: 'get'
+  })
+}
+
 export function createPermission(data) {
   return request({
     url: '/permissions',

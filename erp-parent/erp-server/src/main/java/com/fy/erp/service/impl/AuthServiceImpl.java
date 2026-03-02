@@ -50,10 +50,10 @@ public class AuthServiceImpl implements IAuthService {
   public LoginResponseDTO login(LoginRequestDTO request) {
     SysUser user = userService.findByUsername(request.getUsername());
     if (user == null || user.getStatus() != null && user.getStatus() == 0) {
-      throw new BizException(401, "invalid username or password");
+      throw new BizException(401, "用户名或密码无效！");
     }
     if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-      throw new BizException(401, "invalid username or password");
+      throw new BizException(401, "用户名或密码无效");
     }
     return buildLoginResponse(user);
   }

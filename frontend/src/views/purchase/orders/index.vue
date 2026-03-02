@@ -10,7 +10,7 @@
         <el-option label="已取消" :value="4" />
       </el-select>
       <el-button type="primary" @click="handleSearch">搜索</el-button>
-      <el-button type="success" @click="handleCreate">直接新增订单</el-button>
+      <el-button v-if="authStore.hasPerm('api:purchase:write')" type="success" @click="handleCreate">直接新增订单</el-button>
     </div>
 
     <el-table v-loading="loading" :data="list" border style="width: 100%; margin-top: 20px;">
@@ -29,9 +29,9 @@
       </el-table-column>
        <el-table-column label="操作" width="250">
         <template #default="scope">
-          <el-button v-if="scope.row.status === 0" link type="primary" @click="handleApprove(scope.row)">审核</el-button>
-          <el-button v-if="scope.row.status === 0" link type="danger" @click="handleCancel(scope.row)">取消</el-button>
-          <el-button v-if="scope.row.status === 1" link type="success" @click="handleInbound(scope.row)">入库</el-button>
+          <el-button v-if="scope.row.status === 0 && authStore.hasPerm('api:purchase-orders:{id}:approve:post')" link type="primary" @click="handleApprove(scope.row)">审核</el-button>
+          <el-button v-if="scope.row.status === 0 && authStore.hasPerm('api:purchase:write')" link type="danger" @click="handleCancel(scope.row)">取消</el-button>
+          <el-button v-if="scope.row.status === 1 && authStore.hasPerm('api:purchase:write')" link type="success" @click="handleInbound(scope.row)">入库</el-button>
           <el-button link type="info" @click="handleDetail(scope.row)">详情</el-button>
         </template>
       </el-table-column>
@@ -97,6 +97,42 @@
         <el-button type="primary" @click="submitForm">提交订单</el-button>
       </template>
     </el-dialog>
+    <!-- Detail Drawer -->
+    <el-drawer v-model="detailVisible" title="采购订单详情" size="60%">
+      <div v-loading="detailLoading" v-if="detailData">
+        <el-descriptions title="基础信息" :column="2" border>
+          <el-descriptions-item label="订单号">{{ detailData.orderNo }}</el-descriptions-item>
+          <el-descriptions-item label="供应商">{{ suppliers.find(s => s.id === detailData.supplierId)?.name || '未知供应商' }}</el-descriptions-item>
+          <el-descriptions-item label="创建时间">{{ formatDate(detailData.createTime) }}</el-descriptions-item>
+          <el-descriptions-item label="订单总额">¥{{ detailData.totalAmount }}</el-descriptions-item>
+          <el-descriptions-item label="状态">
+            <el-tag :type="statusMap[detailData.status]?.type">{{ statusMap[detailData.status]?.label }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="关联采购单">{{ detailData.requestNo || '无' }}</el-descriptions-item>
+          <el-descriptions-item label="入库时间">{{ formatDate(detailData.inboundTime) }}</el-descriptions-item>
+          <el-descriptions-item label="应付账款单号">{{ detailData.payableNo || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="备注" :span="2">{{ detailData.remark || '无' }}</el-descriptions-item>
+        </el-descriptions>
+        
+        <el-divider content-position="left">订单明细</el-divider>
+        <el-table :data="detailItems" border>
+          <el-table-column prop="productId" label="商品ID" width="100" />
+          <el-table-column label="仓库" width="150">
+             <template #default="scope">
+                 {{ warehouses.find(w => w.id === scope.row.warehouseId)?.name || scope.row.warehouseId || '默认仓库' }}
+             </template>
+          </el-table-column>
+          <el-table-column prop="price" label="采购单价">
+              <template #default="scope">¥{{ scope.row.price }}</template>
+          </el-table-column>
+          <el-table-column prop="quantity" label="订购数量" />
+          <el-table-column prop="inboundQuantity" label="已入库数量" />
+          <el-table-column label="小计">
+              <template #default="scope">¥{{ (scope.row.price * scope.row.quantity).toFixed(2) }}</template>
+          </el-table-column>
+        </el-table>
+      </div>
+    </el-drawer>
 
     <ProductSelector v-model="showProductSelector" @select="handleProductSelect" />
   </div>
@@ -104,15 +140,19 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { getOrderPage, createOrder, approveOrder, cancelOrder, inboundOrder } from '@/api/purchase/order'
+import { getOrderPage, createOrder, approveOrder, cancelOrder, inboundOrder, getOrder, getOrderItems } from '@/api/purchase/order'
 import { getSupplierPage } from '@/api/base/supplier'
+import { getWarehousePage } from '@/api/base/warehouse'
 import ProductSelector from '@/components/ProductSelector/index.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useAuthStore } from '@/stores/auth'
 
+const authStore = useAuthStore()
 const loading = ref(false)
 const list = ref([])
 const total = ref(0)
 const suppliers = ref([])
+const warehouses = ref([])
 const queryParams = reactive({
   page: 1,
   size: 10,
@@ -130,6 +170,10 @@ const statusMap = {
 
 const dialogVisible = ref(false)
 const showProductSelector = ref(false)
+const detailVisible = ref(false)
+const detailLoading = ref(false)
+const detailData = ref(null)
+const detailItems = ref([])
 const formRef = ref(null)
 const form = reactive({
     supplierId: null,
@@ -152,8 +196,21 @@ const getList = async () => {
 }
 
 const getSuppliers = async () => {
-    const res = await getSupplierPage({ page: 1, size: 100, status: 1 })
-    suppliers.value = res.records
+    if (!authStore.hasPerm('api:suppliers:read')) return
+    try {
+        const res = await getSupplierPage({ page: 1, size: 100, status: 1 })
+        suppliers.value = res.records
+    } catch (e) {}
+}
+
+const getWarehouses = async () => {
+    if (!authStore.hasPerm('api:warehouses:read')) return
+    try {
+        const res = await getWarehousePage({ page: 1, size: 100 })
+        warehouses.value = res.records
+    } catch (e) {
+        console.error("Failed to load warehouses", e)
+    }
 }
 
 const handleSearch = () => {
@@ -194,7 +251,20 @@ const submitForm = async () => {
                 ElMessage.warning('请至少添加一种商品')
                 return
             }
-            await createOrder(form)
+            
+            // Front-to-Back alignment: Strip out 'productName', 'sku'
+            const submitData = {
+                supplierId: form.supplierId,
+                remark: form.remark,
+                items: form.items.map(item => ({
+                    productId: item.productId,
+                    warehouseId: item.warehouseId || 1, // Defaulting to 1 to satisfy backend @NotNull if not set
+                    price: item.price,
+                    quantity: item.quantity
+                }))
+            }
+            
+            await createOrder(submitData)
             ElMessage.success('订单创建成功')
             dialogVisible.value = false
             getList()
@@ -226,8 +296,23 @@ const handleInbound = (row) => {
     })
 }
 
-const handleDetail = (row) => {
-    ElMessage.info('详情功能开发中')
+const handleDetail = async (row) => {
+    detailVisible.value = true
+    detailLoading.value = true
+    detailData.value = null
+    detailItems.value = []
+    try {
+        const [detailRes, itemsRes] = await Promise.all([
+            getOrder(row.id),
+            getOrderItems(row.id)
+        ])
+        detailData.value = detailRes
+        detailItems.value = itemsRes
+    } catch (e) {
+        ElMessage.error('获取详情失败')
+    } finally {
+        detailLoading.value = false
+    }
 }
 
 const formatDate = (dateStr) => {
@@ -238,6 +323,7 @@ const formatDate = (dateStr) => {
 onMounted(() => {
   getList()
   getSuppliers()
+  getWarehouses()
 })
 </script>
 

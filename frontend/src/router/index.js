@@ -9,6 +9,11 @@ const router = createRouter({
       component: () => import('@/views/login/index.vue')
     },
     {
+      path: '/403',
+      name: '403',
+      component: () => import('@/views/error/403.vue')
+    },
+    {
       path: '/',
       name: 'root',
       redirect: '/dashboard',
@@ -33,11 +38,6 @@ const router = createRouter({
           path: '/system/depts',
           name: 'depts',
           component: () => import('@/views/system/depts/index.vue')
-        },
-        {
-          path: '/system/permissions',
-          name: 'permissions',
-          component: () => import('@/views/system/permissions/index.vue')
         },
         // Base Data
         {
@@ -105,6 +105,11 @@ const router = createRouter({
           component: () => import('@/views/finance/payables/index.vue')
         }
       ]
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'notFound',
+      redirect: '/403' // or to a specific 404 page if created
     }
   ]
 })

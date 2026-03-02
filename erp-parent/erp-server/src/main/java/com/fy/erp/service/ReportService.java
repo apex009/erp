@@ -14,12 +14,27 @@ import java.util.List;
 @Service
 public class ReportService {
     private final ReportMapper reportMapper;
+    private final org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate;
 
-    @Value("${erp.dashboard.sales-target:100000}")
-    private BigDecimal salesTarget;
+    @org.springframework.beans.factory.annotation.Value("${erp.dashboard.sales-target:100000}")
+    private BigDecimal defaultSalesTarget;
 
-    public ReportService(ReportMapper reportMapper) {
+    public ReportService(ReportMapper reportMapper,
+            org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate) {
         this.reportMapper = reportMapper;
+        this.redisTemplate = redisTemplate;
+    }
+
+    public BigDecimal getDynamicSalesTarget() {
+        Object target = redisTemplate.opsForValue()
+                .get(com.fy.erp.constant.RedisKeyPrefix.REPORT_DASHBOARD + "sales_target");
+        if (target != null) {
+            try {
+                return new BigDecimal(target.toString());
+            } catch (Exception e) {
+            }
+        }
+        return defaultSalesTarget;
     }
 
     /**
@@ -65,12 +80,8 @@ public class ReportService {
     /**
      * 固定阶段定义（按业务顺序）
      */
-    private static final String[][] STAGES = {
-            { "潜在客户", "潜在客户" },
-            { "已跟进", "已跟进" },
-            { "报价中", "报价中" },
-            { "已成交", "已成交" }
-    };
+    private static final String[][] STAGES = { { "潜在客户", "潜在客户" }, { "已跟进", "已跟进" }, { "报价中", "报价中" },
+            { "已成交", "已成交" } };
 
     /**
      * 漏斗数据（阶段固定顺序 + 缺失补0 + 转化率计算）
@@ -116,8 +127,8 @@ public class ReportService {
                 long prevCount = result.get(i - 1).getCount();
                 long curCount = result.get(i).getCount();
                 if (prevCount > 0) {
-                    result.get(i).setConversionRate(
-                            java.math.BigDecimal.valueOf(curCount)
+                    result.get(i)
+                            .setConversionRate(java.math.BigDecimal.valueOf(curCount)
                                     .divide(java.math.BigDecimal.valueOf(prevCount), 4, java.math.RoundingMode.HALF_UP)
                                     .multiply(new java.math.BigDecimal("100")));
                 } else {
@@ -218,14 +229,15 @@ public class ReportService {
         }
 
         // 销售目标
-        summary.setSalesTarget(salesTarget);
+        BigDecimal currentSalesTarget = getDynamicSalesTarget();
+        summary.setSalesTarget(currentSalesTarget);
 
         // 达成率
         BigDecimal todayAmount = summary.getTodaySalesAmount() != null ? summary.getTodaySalesAmount()
                 : BigDecimal.ZERO;
-        if (salesTarget.compareTo(BigDecimal.ZERO) > 0) {
+        if (currentSalesTarget.compareTo(BigDecimal.ZERO) > 0) {
             summary.setAchieveRate(
-                    todayAmount.divide(salesTarget, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100")));
+                    todayAmount.divide(currentSalesTarget, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100")));
         } else {
             summary.setAchieveRate(BigDecimal.ZERO);
         }
@@ -235,8 +247,7 @@ public class ReportService {
         if (yesterday != null && yesterday.getTodaySalesAmount() != null
                 && yesterday.getTodaySalesAmount().compareTo(BigDecimal.ZERO) > 0) {
             summary.setMomGrowth(todayAmount.subtract(yesterday.getTodaySalesAmount())
-                    .divide(yesterday.getTodaySalesAmount(), 4, RoundingMode.HALF_UP)
-                    .multiply(new BigDecimal("100")));
+                    .divide(yesterday.getTodaySalesAmount(), 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100")));
         } else {
             summary.setMomGrowth(BigDecimal.ZERO);
         }
@@ -246,8 +257,7 @@ public class ReportService {
         if (lastYear != null && lastYear.getTodaySalesAmount() != null
                 && lastYear.getTodaySalesAmount().compareTo(BigDecimal.ZERO) > 0) {
             summary.setYoyGrowth(todayAmount.subtract(lastYear.getTodaySalesAmount())
-                    .divide(lastYear.getTodaySalesAmount(), 4, RoundingMode.HALF_UP)
-                    .multiply(new BigDecimal("100")));
+                    .divide(lastYear.getTodaySalesAmount(), 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100")));
         } else {
             summary.setYoyGrowth(BigDecimal.ZERO);
         }

@@ -45,7 +45,10 @@ service.interceptors.response.use(
 
       // 403: 无权限
       if (res.code === 403) {
-        ElMessage.warning('您没有操作权限')
+        if (!response.config?.ignore403) {
+          ElMessage.warning('您没有操作权限')
+          router.replace('/403')
+        }
         return Promise.reject(new Error('无权限'))
       }
 
@@ -61,19 +64,30 @@ service.interceptors.response.use(
     }
   },
   error => {
-    // HTTP 层错误（网络断开、超时等）
+    // HTTP 层错误（网络断开、超时等）或后端抛出具体异常响应（如 4xx/5xx）
     const status = error.response?.status
+    const res = error.response?.data
+
     if (status === 401) {
       if (!isRedirecting) {
         isRedirecting = true
         const authStore = useAuthStore()
         authStore.resetToken()
-        ElMessage.error('登录状态已过期，请重新登录')
+        ElMessage.error(res?.msg || '登录状态已过期，请重新登录')
         router.replace('/login?redirect=' + router.currentRoute.value.fullPath)
         setTimeout(() => { isRedirecting = false }, 2000)
       }
     } else if (status === 403) {
-      ElMessage.warning('您没有操作权限')
+      if (!error.config?.ignore403) {
+        ElMessage.warning(res?.msg || '您没有操作权限')
+        router.replace('/403')
+      }
+    } else if (status === 400) {
+      ElMessage.warning(res?.msg || '请求参数错误')
+    } else if (status === 409) {
+      ElMessage.warning(res?.msg || '业务或状态冲突')
+    } else if (status >= 500) {
+      ElMessage.error(res?.msg || '服务器内部错误，请稍后重试')
     } else {
       ElMessage.error(error.message || '网络异常')
     }

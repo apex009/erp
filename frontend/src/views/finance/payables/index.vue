@@ -42,7 +42,7 @@
       </el-table-column>
       <el-table-column label="操作" width="150">
         <template #default="scope">
-          <el-button v-if="scope.row.status !== 2" link type="success" @click="handlePay(scope.row)">付款</el-button>
+          <el-button v-if="scope.row.status !== 2 && authStore.hasPerm('api:payables:write')" link type="success" @click="handlePay(scope.row)">付款</el-button>
           <el-button link type="info" @click="handleDetail(scope.row)">明细</el-button>
         </template>
       </el-table-column>
@@ -82,15 +82,51 @@
             <el-button type="primary" @click="submitPayment">确定付款</el-button>
         </template>
     </el-dialog>
+
+    <!-- Detail Drawer -->
+    <el-drawer v-model="detailVisible" title="应付明细记录" size="50%">
+      <div v-loading="detailLoading" v-if="detailData">
+        <el-descriptions title="基础信息" :column="2" border>
+          <el-descriptions-item label="应付单号">{{ detailData.payableNo }}</el-descriptions-item>
+          <el-descriptions-item label="源单号">{{ detailData.sourceOrderNo }}</el-descriptions-item>
+          <el-descriptions-item label="供应商">{{ suppliers.find(s => s.id === detailData.supplierId)?.name || '未知' }}</el-descriptions-item>
+          <el-descriptions-item label="应付总额">¥{{ detailData.totalAmount }}</el-descriptions-item>
+          <el-descriptions-item label="已付金额">¥{{ detailData.paidAmount }}</el-descriptions-item>
+          <el-descriptions-item label="状态">
+            <el-tag :type="statusMap[detailData.status]?.type">{{ statusMap[detailData.status]?.label }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="到期日">{{ formatDate(detailData.dueDate) }}</el-descriptions-item>
+        </el-descriptions>
+        
+        <el-divider content-position="left">付款流水记录</el-divider>
+        <el-table :data="detailPayments" border>
+          <el-table-column prop="paymentNo" label="付款流水号" width="180" />
+          <el-table-column prop="amount" label="付款金额">
+              <template #default="scope">¥{{ scope.row.amount }}</template>
+          </el-table-column>
+          <el-table-column prop="method" label="付款方式">
+              <template #default="scope">
+                  <el-tag size="small">{{ scope.row.method }}</el-tag>
+              </template>
+          </el-table-column>
+          <el-table-column prop="paymentTime" label="付款时间" width="160">
+              <template #default="scope">{{ new Date(scope.row.paymentTime).toLocaleString() }}</template>
+          </el-table-column>
+          <el-table-column prop="remark" label="备注" />
+        </el-table>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { getPayablePage, createPayment } from '@/api/finance/payable'
+import { getPayablePage, createPayment, getPayable, getPayments } from '@/api/finance/payable'
 import { getSupplierPage } from '@/api/base/supplier'
 import { ElMessage } from 'element-plus'
+import { useAuthStore } from '@/stores/auth'
 
+const authStore = useAuthStore()
 const loading = ref(false)
 const list = ref([])
 const total = ref(0)
@@ -109,6 +145,10 @@ const statusMap = {
 }
 
 const dialogVisible = ref(false)
+const detailVisible = ref(false)
+const detailLoading = ref(false)
+const detailData = ref(null)
+const detailPayments = ref([])
 const formRef = ref(null)
 const form = reactive({
     id: null,
@@ -133,10 +173,12 @@ const getList = async () => {
 }
 
 const getSuppliers = async () => {
-    const res = await getSupplierPage({ page: 1, size: 100, status: 1 })
-    suppliers.value = res.records
+    if (!authStore.hasPerm('api:suppliers:read')) return
+    try {
+        const res = await getSupplierPage({ page: 1, size: 100, status: 1 })
+        suppliers.value = res.records
+    } catch (e) {}
 }
-
 const handleSearch = () => {
   queryParams.page = 1
   getList()
@@ -166,9 +208,23 @@ const submitPayment = async () => {
     })
 }
 
-const handleDetail = (row) => {
-    // TODO: Show payment history dialog
-    ElMessage.info('查看明细功能开发中')
+const handleDetail = async (row) => {
+    detailVisible.value = true
+    detailLoading.value = true
+    detailData.value = null
+    detailPayments.value = []
+    try {
+        const [detailRes, paymentsRes] = await Promise.all([
+            getPayable(row.id),
+            getPayments(row.id)
+        ])
+        detailData.value = detailRes
+        detailPayments.value = paymentsRes
+    } catch (e) {
+        ElMessage.error('获取明细失败')
+    } finally {
+        detailLoading.value = false
+    }
 }
 
 const formatDate = (dateStr) => {

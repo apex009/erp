@@ -80,7 +80,6 @@
             <el-menu-item v-if="showMenu('/system/users')" index="/system/users">用户管理</el-menu-item>
             <el-menu-item v-if="showMenu('/system/roles')" index="/system/roles">角色管理</el-menu-item>
             <el-menu-item v-if="showMenu('/system/depts')" index="/system/depts">部门管理</el-menu-item>
-            <el-menu-item v-if="showMenu('/system/permissions')" index="/system/permissions">权限管理</el-menu-item>
           </el-sub-menu>
         </el-menu>
       </el-aside>
@@ -131,13 +130,40 @@ import { Odometer, Setting, ArrowDown, Files, ShoppingCart, ShoppingBag, Box, Wa
 const router = useRouter()
 const authStore = useAuthStore()
 
+const routePermMap = {
+  '/dashboard': null,
+  '/base/products': 'api:products:read',
+  '/base/suppliers': 'api:suppliers:read',
+  '/base/customers': 'api:customers:read',
+  '/base/warehouses': 'api:warehouses:read',
+  '/purchase/requests': 'api:purchase:read',
+  '/purchase/orders': 'api:purchase:read',
+  '/sales/leads': 'api:leads:read',
+  '/sales/orders': 'api:sales:read',
+  '/inventory/stocks': 'api:inventory:read',
+  '/inventory/records': 'api:inventory:read',
+  '/finance/receivables': 'api:receivables:read',
+  '/finance/payables': 'api:payables:read',
+  '/system/users': 'api:system:read',
+  '/system/roles': 'api:system:read',
+  '/system/depts': 'api:system:read'
+}
+
 /**
- * 判断是否显示某个菜单项（基于 RBAC 权限）
+ * 判断是否显示某个菜单项（基于 RBAC 菜单 + 额外 API 权限拦截）
  * ADMIN 角色看到所有菜单
  */
 const showMenu = (path) => {
   if (authStore.roles.includes('ADMIN')) return true
-  return authStore.menus.some(m => m.path === path)
+  const inMenu = authStore.menus.some(m => m.path === path)
+  if (!inMenu) return false
+  
+  // 防止错配：无读取数据权限则强行隐藏入口
+  const reqPerm = routePermMap[path]
+  if (reqPerm) {
+    return authStore.hasPerm(reqPerm)
+  }
+  return true
 }
 
 /**
